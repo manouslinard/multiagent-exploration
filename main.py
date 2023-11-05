@@ -1,7 +1,6 @@
 import copy
 import random
 import numpy as np
-from classes.agent import Agent
 from classes.stage import *
 from algorithms.astar import a_star
 

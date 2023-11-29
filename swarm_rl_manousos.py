@@ -14,7 +14,9 @@ import functools
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import multiprocessing
 
+from sklearn.preprocessing import MinMaxScaler
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -331,7 +333,6 @@ def move_astar(start_grid, start_agents, debug=True):
       grid[agent.x, agent.y] = 2  # Mark initial agent positions
   total_explored = update_total_explored(agents)
   total_agents = len(agents)
-  # print(total_agents)
   avg_eps_time = []
   avg_agent_time = []
 
@@ -354,7 +355,6 @@ def move_astar(start_grid, start_agents, debug=True):
                 grid[agent.x, agent.y] = 0  # Mark the old position as unoccupied
                 agent.x, agent.y = path[1]  # Update agent position
                 grid[agent.x, agent.y] = 2  # Mark the new position as occupied by agent
-                # if agent.check_goal():
           else:
             path_none += 1
           agent.agent_view(start_grid)
@@ -365,16 +365,9 @@ def move_astar(start_grid, start_agents, debug=True):
           print(path_none, len(agents))
           draw_maze(agents[0].explored_stage, goal=agents[0].goal)
           break
-
-  # if debug:
-  #     print(total_explored)
-  # print(len(agents))
-  # test_fin = 0
   for agent in agents:  # gets the time of some finished agents (that have not been counted),
     if (agent.x, agent.y) == agent.goal:
       avg_agent_time.append(time.time() - agent.start_time)
-      # test_fin += 1
-  # print(test_fin)
   return calculate_expl_percentage(total_explored), len(avg_agent_time) / total_agents, total_explored, np.mean(avg_eps_time), np.mean(avg_agent_time)
 
 
@@ -407,9 +400,6 @@ def create_maze(rows, cols, obs_prob=0.8):
         else:
             stack.pop()
 
-    # print(1, rows*2-1)
-    # print(1, cols*2-1)
-
     zero_indices = np.argwhere(maze == 0)
     zero_coords = [tuple(index) for index in zero_indices]
 
@@ -441,18 +431,17 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, a
   avg_agent_time = []
   avg_eps_time= []
 
-  for _ in range(num_test):
+  for i in range(num_test):
+    print(f"#Agent: {num_agents} / Test: {i}")
     start_time = time.time()
     if start_grid is None:
       grid = gen_stage_func()
-      # print(grid)
     else:
       grid = copy.deepcopy(start_grid)
     agents = generate_agents(real_stage = grid, num_agents = num_agents, view_range = agent_view_range)
     res = move_astar(start_grid=grid, start_agents=agents, debug=debug)
     avg.append(res[0])
     avg_finish.append(res[1])
-    # print(avg_finish)
     avg_exp_time.append(time.time() - start_time)
     avg_eps_time.append(res[3])
     avg_agent_time.append(res[4])
@@ -463,32 +452,20 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, a
     avg_agent_time = np.where(np.isnan(avg_agent_time), 1, avg_agent_time)
 
   avg_cover, avg_finish, avg_expt_time, avg_eps_time, avg_agent_time = np.mean(avg), np.mean(avg_finish), np.mean(avg_exp_time), np.mean(avg_eps_time), np.mean(avg_agent_time)
-  # if debug:
   print(f"Average Coverage Percentage: {avg_cover} / Average Finished: {avg_finish} / Average Experiment Time: {avg_expt_time}s / Average Episode Time: {avg_eps_time} / Average Agent Finish Time : {avg_agent_time}")
   return avg_cover, avg_finish, avg_expt_time, avg_eps_time, avg_agent_time
 
-"""Save experiments on a xlsx file:"""
 
-file_path = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm.xlsx'
+def run_exp_xlsx(file_path, min_num_agents, max_num_agents, rows, cols, num_test, obs_prob=0.85, view_range = 2):
+  """Save experiments on a xlsx file:"""
+  try:
+      df = pd.read_excel(file_path)
+  except FileNotFoundError:
+      df = pd.DataFrame(columns=["#_Agents", "Coverage", "Finished_Agents", "Experiment_Time", "Episode_Time", "Agent_Finish_Time", "Dimensions", "Obs_Prob"])
 
-# Initialization Parameters ========
-min_num_agents = 20
-max_num_agents = 25
-min_maze_dim = 29
-max_maze_dim = 29
-num_test = 100
-# =================================
-
-try:
-    df = pd.read_excel(file_path)
-except FileNotFoundError:
-    df = pd.DataFrame(columns=["#_Agents", "Coverage", "Finished_Agents", "Experiment_Time", "Episode_Time", "Agent_Finish_Time", "Dimensions"])
-
-for maze_dim in range(min_maze_dim, max_maze_dim + 1):
-  print(f"Maze Dimensions: {maze_dim}x{maze_dim}")
   for num_agent in range(min_num_agents, max_num_agents + 1):
-    print(f"  Agent number: {num_agent}")
-    avg_cover, avg_finish, avg_expt_time, avg_eps_time, avg_agent_time = test_astar(num_agent, num_test, gen_stage_func=functools.partial(create_maze, rows=maze_dim, cols=maze_dim, obs_prob=0.85), agent_view_range=1000, debug=False)
+    print(f"Agent number: {num_agent} / Obs_Prob: {obs_prob}")
+    avg_cover, avg_finish, avg_expt_time, avg_eps_time, avg_agent_time = test_astar(num_agent, num_test, gen_stage_func=functools.partial(create_maze, rows=rows, cols=cols, obs_prob=obs_prob), agent_view_range=view_range, debug=False)
     new_row = {
         "#_Agents": num_agent,
         "Coverage": avg_cover,
@@ -496,46 +473,51 @@ for maze_dim in range(min_maze_dim, max_maze_dim + 1):
         "Experiment_Time": avg_expt_time,
         "Episode_Time": avg_eps_time,
         "Agent_Finish_Time": avg_agent_time,
-        "Dimensions": (maze_dim, maze_dim)
+        "Dimensions": (rows, cols),
+        "Obs_Prob": obs_prob
     }
+    df = df.append(new_row, ignore_index=True)
+    df.to_excel(file_path, float_format='%.5f', index=False)
+    print(f"Agent number: {num_agent} / Obs_Prob: {1-obs_prob}")
 
+    avg_cover, avg_finish, avg_expt_time, avg_eps_time, avg_agent_time = test_astar(num_agent, num_test, gen_stage_func=functools.partial(create_maze, rows=rows, cols=cols, obs_prob=1-obs_prob), agent_view_range=view_range, debug=False)
+    new_row = {
+        "#_Agents": num_agent,
+        "Coverage": avg_cover,
+        "Finished_Agents": avg_finish,
+        "Experiment_Time": avg_expt_time,
+        "Episode_Time": avg_eps_time,
+        "Agent_Finish_Time": avg_agent_time,
+        "Dimensions": (rows, cols),
+        "Obs_Prob": 1 - obs_prob
+    }
     df = df.append(new_row, ignore_index=True)
     df.to_excel(file_path, float_format='%.5f', index=False)
 
-# import matplotlib.pyplot as plt
-# from sklearn.preprocessing import MinMaxScaler
+if __name__ == "__main__":
+    # Initialization Parameters ========
+    rows = 100
+    cols = 200
+    num_test = 100
+    file_path1 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_1.xlsx'
+    file_path2 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_2.xlsx'
+    file_path3 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_3.xlsx'
+    file_path4 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_4.xlsx'
+    # =================================
+    params_list = [
+        (file_path1, 10, 13, rows, cols, num_test),
+        (file_path2, 14, 17, rows, cols, num_test),
+        (file_path3, 18, 21, rows, cols, num_test),
+        (file_path4, 22, 25, rows, cols, num_test)
+    ]
 
-# file_path = 'astar_swarm.xlsx'
-# df = pd.read_excel(file_path)
+    processes = []
+    for params in params_list:
+        process = multiprocessing.Process(target=run_exp_xlsx, args=params)
+        processes.append(process)
 
-# # weights sum up to 0.
-# weights = {
-#     'Coverage': 1,
-#     'Finished_Agents': 1,
-#     'Experiment_Time': -1,
-#     'Episode_Time': -1,
-#     'Agent_Finish_Time': -1,
-# }
+    for process in processes:
+        process.start()
 
-# scaler = MinMaxScaler()
-# df_normalized = pd.DataFrame(scaler.fit_transform(df[['Coverage', 'Finished_Agents', 'Experiment_Time', 'Episode_Time', 'Agent_Finish_Time']]),
-#                               columns=['Coverage', 'Finished_Agents', 'Experiment_Time', 'Episode_Time', 'Agent_Finish_Time'])
-
-# df['Composite_Score'] = (df_normalized['Coverage'] * weights['Coverage'] +
-#                          df_normalized['Finished_Agents'] * weights['Finished_Agents'] +
-#                          df_normalized['Experiment_Time'] * weights['Experiment_Time'] +
-#                          df_normalized['Episode_Time'] * weights['Episode_Time'] +
-#                          df_normalized['Agent_Finish_Time'] * weights['Agent_Finish_Time'])
-
-# # print(df)
-
-# avg_scores = df.groupby('#_Agents')['Composite_Score'].mean().reset_index(name='Average_Score')
-# # print(avg_scores)
-
-# plt.plot(avg_scores['#_Agents'], avg_scores['Average_Score'], marker='o', linestyle='-', color='b')
-# plt.xlabel('# of Agents')
-# plt.xticks(avg_scores['#_Agents'].astype(int))
-# plt.ylabel('Average Score')
-# plt.title("Average Score from 10x10 to 13x13 maze.")
-# plt.grid(True)
-# plt.show()
+    for process in processes:
+        process.join()

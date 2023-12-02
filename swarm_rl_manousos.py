@@ -7,6 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1cm72UF410of_mpOD2MRWVLuUruF6G_N3
 """
 
+import os
 import time
 import copy
 import random
@@ -476,7 +477,7 @@ def run_exp_xlsx(file_path, min_num_agents, max_num_agents, rows, cols, num_test
         "Dimensions": (rows, cols),
         "Obs_Prob": obs_prob
     }
-    df = df.append(new_row, ignore_index=True)
+    df = df._append(new_row, ignore_index=True)
     df.to_excel(file_path, float_format='%.5f', index=False)
     print(f"Agent number: {num_agent} / Obs_Prob: {1-obs_prob}")
 
@@ -491,7 +492,7 @@ def run_exp_xlsx(file_path, min_num_agents, max_num_agents, rows, cols, num_test
         "Dimensions": (rows, cols),
         "Obs_Prob": 1 - obs_prob
     }
-    df = df.append(new_row, ignore_index=True)
+    df = df._append(new_row, ignore_index=True)
     df.to_excel(file_path, float_format='%.5f', index=False)
 
 if __name__ == "__main__":
@@ -499,17 +500,46 @@ if __name__ == "__main__":
     rows = 100
     cols = 200
     num_test = 100
-    file_path1 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_1.xlsx'
-    file_path2 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_2.xlsx'
-    file_path3 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_3.xlsx'
-    file_path4 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_4.xlsx'
-    # =================================
-    params_list = [
-        (file_path1, 10, 13, rows, cols, num_test),
-        (file_path2, 14, 17, rows, cols, num_test),
-        (file_path3, 18, 21, rows, cols, num_test),
-        (file_path4, 22, 25, rows, cols, num_test)
-    ]
+
+    if os.name == 'posix':
+      file_path12 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_12.xlsx'
+      file_path13 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_13.xlsx'
+      file_path16 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_16.xlsx'
+      file_path17 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_17.xlsx'
+      file_path19_0 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_19_0.xlsx'
+      file_path19_1 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_19_1.xlsx'
+      file_path20 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_20.xlsx'
+      file_path21 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_21.xlsx'
+      file_path23_0 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_23_0.xlsx'
+      file_path23_1 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_23_1.xlsx'
+      file_path24 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_24.xlsx'
+      file_path25 = '/home/manousos/Documents/HUA/thesis/fossbot-maze/astar_swarm100x200_25.xlsx'
+      # =================================
+      params_list = [
+          # (file_path12, 12, 12, rows, cols, num_test),
+          # (file_path13, 13, 13, rows, cols, num_test),
+          # (file_path16, 16, 16, rows, cols, num_test),
+          # (file_path17, 17, 17, rows, cols, num_test),
+          # (file_path20, 20, 20, rows, cols, num_test),
+          # (file_path21, 21, 21, rows, cols, num_test),
+          # (file_path24, 24, 24, rows, cols, num_test),
+          # (file_path25, 25, 25, rows, cols, num_test),
+          (file_path19_0, 19, 19, rows, cols, num_test),
+          (file_path19_1, 19, 19, rows, cols, num_test, 0.15),
+          (file_path23_0, 23, 23, rows, cols, num_test),
+          (file_path23_1, 23, 23, rows, cols, num_test, 0.15),
+      ]
+    else:
+      file_path1 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_1.xlsx'
+      file_path2 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_2.xlsx'
+      file_path3 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_3.xlsx'
+      file_path4 = 'C:\\Users\\Manousos\\BSC_Thesis\\fossbot\\astar_swarm100x200_4.xlsx'
+      params_list = [
+          (file_path1, 19, 19, rows, cols, num_test),
+          (file_path2, 19, 19, rows, cols, num_test, 0.15),
+          (file_path3, 23, 23, rows, cols, num_test),
+          (file_path4, 23, 23, rows, cols, num_test, 0.15),
+      ]
 
     processes = []
     for params in params_list:

@@ -4,22 +4,23 @@
 This repository contains algorithms for maze exploration with multiple agents, developed for my BSc thesis. The algorithms are designed to efficiently navigate and explore maze environments using a swarm of agents.
 
 ## File Naming Convention
-The resulting Excel files follow a specific naming convention to convey essential metadata:
+The resulting Excel files of the experiments (saved in the `results` folder) follow a specific naming convention to convey essential metadata. The `results` folder contains subfolders with names that correspond to the algorithm that made these results.
 
 The file with all experiments is named like so:
 
 ```
-astar_swarm_all_{rows}x{cols}_{coverage_mode}_{agent_view}.xlsx
+{algo}_all_{rows}x{cols}_{coverage_mode}_{agent_view}.xlsx
 ```
 
 The file with the averages of the experiments is named like so:
 
 ```
-astar_swarm_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}.xlsx
+{algo}_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}.xlsx
 ```
 
 Each element in the title signifies:
 
+- `algo`: the algorithm used for the maze coverage (nearest frontier, HEDAC, etc).
 - `rows`: The number of rows in the maze represented in the Excel file.
 - `cols`: The number of columns in the maze represented in the Excel file.
 - `coverage_mode`: Indicates whether the goal was to explore the entire maze stage (True or False).

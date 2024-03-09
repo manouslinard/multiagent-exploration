@@ -52,16 +52,6 @@ This mode, extensively researched in my thesis and denoted by `coverage_mode = T
 - `Experiment_Time`: Average time taken for experiment completion.
 - `Obs_Prob`: Obs probability of the test.
 
-### Algorithms for Maze Coverage
-Here are some results from the algorithms used for maze coverage:
-
-**Nearest-Frontier:**
-![Nearest-Frontier](utils/nf_30x30_10agents.gif)
-
-**HEDAC:**
-![HEDAC](utils/hedac_30x30_10agents.gif)
-
----
 ## Reach Goal Mode (not in thesis)
 
 This mode was initially implemented during experimentation with various scenarios. Its objective is for the agents to reach a specified goal within the stage. Files associated with this mode are denoted by `coverage_mode = False` in their titles. The columns in these files are structured as follows:
@@ -86,3 +76,19 @@ This mode was initially implemented during experimentation with various scenario
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move (in seconds) across all experiments.
 - `Experiment_Time`: Average time taken for experiment completion.
 - `Obs_Prob`: Obs probability of the test.
+
+## Maze Coverage Examples
+
+Here are the results from the algorithms used for maze coverage:
+
+### Nearest-Frontier
+
+<p align="center">
+  <img src="utils/nf_30x30_10agents.gif" alt="Nearest-Frontier">
+</p>
+
+### HEDAC
+
+<p align="center">
+  <img src="utils/hedac_30x30_10agents.gif" alt="HEDAC">
+</p>

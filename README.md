@@ -77,9 +77,9 @@ This mode was initially implemented during experimentation with various scenario
 - `Experiment_Time`: Average time taken for experiment completion.
 - `Obs_Prob`: Obs probability of the test.
 
-## Maze Coverage Examples
 
-Here are the results from the algorithms used for maze coverage:
+<details closed>
+<summary><h2>Maze Coverage Examples</h2>Here are the results from the algorithms used for maze coverage (click here to view):</summary>
 
 ### Nearest-Frontier
 
@@ -92,3 +92,14 @@ Here are the results from the algorithms used for maze coverage:
 <p align="center">
   <img src="utils/hedac_30x30_10agents.gif" alt="HEDAC">
 </p>
+
+### Cost Utility - MNM:
+<p align="center">
+  <img src="utils/cu_mnm_30x30_10agents.gif" alt="CU_MNM">
+</p>
+
+### Cost Utility - JGR:
+<p align="center">
+  <img src="utils/cu_jgr_30x30_10agents_0.8.gif" alt="CU_JGR">
+</p>
+</details>

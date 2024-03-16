@@ -1,6 +1,7 @@
 import pandas as pd
 import glob
 import os
+import re
 
 xlsx_files = glob.glob(f'all/*.xlsx')
 
@@ -12,7 +13,7 @@ for file in xlsx_files:
     df = pd.read_excel(file)
     dfs.append(df)
     file_prefix = file.split('all/')[1].split('_all_')[0]
-    if not file_prefix.startswith('p_'):
+    if not file_prefix.startswith('p_') and not re.match(r'^p_\d+', file_prefix):
        algo_name = file_prefix
 
 

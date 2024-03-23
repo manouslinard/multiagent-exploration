@@ -31,12 +31,18 @@ This naming convention provides a clear understanding of the contents and contex
 
 ## Coverage Mode
 
-This mode, extensively researched in my thesis and denoted by `coverage_mode = True` in the titles of the Excel files, aims to **thoroughly explore the entire stage**. The columns in these files are structured as follows:
+This mode, extensively researched in my thesis and denoted by `coverage_mode = True` in the titles of the Excel files, aims to **thoroughly explore the entire stage**. 
+
+The metrics used in the experiments are the ones denoted in paper *<u>Yan, Z., Fabresse, L., Laval, J., & Bouraqadi, N. (2015, September). Metrics for performance benchmarking of multi-robot exploration. In 2015 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS) (pp. 3407-3414). IEEE</u>*. For more information on how these are calculated, see paper or corresponding documentation in the code of this repo.
+
+The columns in these files are structured as follows:
 
 **In the File with All Experiments:**
 - `#_Agents`: Number of agents used.
 - `Coverage`: Coverage percentage of the maze.
 - `Total_Rounds`: Total rounds for the experiment to finish (maze exploration or reaching dead ends).
+- `Expl_Cost`: Cost of maze exploration for this test.
+- `Expl_Eff`: Efficiency of maze exploration for this test.
 - `Avg_Round_Time`: Average round time per test (in seconds).
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move per test (in seconds).
 - `Experiment_Time`: Time until the test completion.
@@ -47,6 +53,8 @@ This mode, extensively researched in my thesis and denoted by `coverage_mode = T
 - `#_Agents`: Number of agents used.
 - `Coverage`: Average coverage percentage of all experiments.
 - `Avg_Total_Rounds`: Average total rounds of all experiments.
+- `Avg_Expl_Cost`: Average cost of the exploration for all experiments.
+- `Avg_Expl_Eff`: Average efficiency of the exploration for all experiments.
 - `Std_Total_Rounds`: The standard deviation of rounds for all experiments.
 - `Avg_Round_Time`: Average round time (in seconds) across all experiments.
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move (in seconds) across all experiments.

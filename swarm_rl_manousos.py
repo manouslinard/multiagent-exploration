@@ -1589,6 +1589,7 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
     while len(agent_teams) < num_cores:
       i = random.randint(0, l - 1)
       agent_teams.append([agents_num_list[i]])
+    print(f"Agent Teams: {agent_teams}")
     # ------------------------
 
     l = len(agent_teams[0]) # gets the team size of each team
@@ -1630,14 +1631,21 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
            path += f"_{lambda_}"
 
         df_all = pd.concat(df_all, ignore_index=True, axis=0)
+        if os.path.exists(path_all+".xlsx"):
+          df_tmp = pd.read_excel(path_all+".xlsx")
+          df_all = pd.concat([df_tmp, df_all], axis=0)
         df_all.to_excel(path_all+".xlsx", index=False)
+
         df = pd.concat(df, ignore_index=True, axis=0)
+        if os.path.exists(path+".xlsx"):
+          df_tmp = pd.read_excel(path+".xlsx")
+          df = pd.concat([df_tmp, df], axis=0)
         df.to_excel(path+".xlsx", index=False)
 
 """Running the experiments:"""
 
 # Initialization Parameters ========
-agents_num_list = [1, 2, 4, 6, 8, 10]
+agents_num_list = [[1, 2, 4, 6], [8, 10]]
 rows = 15
 cols = 15
 num_test = 450
@@ -1647,6 +1655,7 @@ coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
 alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.8 # used in cost-utility jgr
 voronoi_mode = False
-algos = ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal']
+algos = ['new_ff_cu_hedac_diffgoal']
 for t_algo in algos:
-  run_all_exp(t_algo, agents_num_list, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)
+  for agents_num_list_i in agents_num_list:
+    run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

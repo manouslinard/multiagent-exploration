@@ -1585,10 +1585,9 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
     agent_teams = [agents_num_list[i:i+team_size] for i,_ in enumerate(agents_num_list)]
     while len(agent_teams) > num_cores:
       agent_teams.pop()
-    l = len(agent_teams)
-    while len(agent_teams) < num_cores:
-      i = random.randint(0, l - 1)
-      agent_teams.append([agents_num_list[i]])
+    if len(agent_teams) < num_cores:
+      num_cores = len(agent_teams)
+    print(f"Num_Cores: {num_cores}")
     print(f"Agent Teams: {agent_teams}")
     # ------------------------
 

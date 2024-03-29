@@ -45,7 +45,7 @@ The columns in these files are structured as follows:
 - `Expl_Eff`: Efficiency of maze exploration for this test.
 - `Avg_Round_Time`: Average round time per test (in seconds).
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move per test (in seconds).
-- `Experiment_Time`: Time until the test completion.
+- `Experiment_Time`: Time (seconds) until agents have explored target percentage (e.g. 100%).
 - `Obs_Prob`: Obs probability of the test.
 - `Test`: Test index.
 
@@ -58,7 +58,7 @@ The columns in these files are structured as follows:
 - `Std_Total_Rounds`: The standard deviation of rounds for all experiments.
 - `Avg_Round_Time`: Average round time (in seconds) across all experiments.
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move (in seconds) across all experiments.
-- `Experiment_Time`: Average time taken for experiment completion.
+- `Experiment_Time`: Average time (seconds) across all experiments, until agents have explored target percentage (e.g. 100%).
 - `Obs_Prob`: Obs probability of the test.
 
 ## Reach Goal Mode (not in thesis)
@@ -73,7 +73,7 @@ This mode was initially implemented during experimentation with various scenario
 - `Avg_Round_Time`: Average round time per test (in seconds).
 - `Finished_Agents`: The percentage of agents that reached their goal.
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move per test (in seconds).
-- `Experiment_Time`: Time until the test completion.
+- `Experiment_Time`: Time (seconds) until experiment completion.
 - `Obs_Prob`: Obs probability of the test.
 - `Test`: Test index.
 
@@ -83,7 +83,7 @@ This mode was initially implemented during experimentation with various scenario
 - `Avg_Total_Rounds`: Average total rounds of all experiments.
 - `Avg_Round_Time`: Average round time (in seconds) across all experiments.
 - `Avg_Agent_Step_Time`: Average time taken by an agent to make a move (in seconds) across all experiments.
-- `Experiment_Time`: Average time taken for experiment completion.
+- `Experiment_Time`: Average time taken (in seconds) for experiment completion.
 - `Obs_Prob`: Obs probability of the test.
 
 

@@ -1165,6 +1165,7 @@ The above proposals and alternatives have been implemented in the code below. Al
 * `new_cu_hedac_diffgoal`: proposed approach with hedac and forcing different goals across agents.
 * `new_cu_diffgoal_path`: proposed approach, with forcing different goals across agents **and getting the entire path for u_jgr**.
 * `new_cu_hedac_diffgoal_path`: proposed approac with hedac and forcing different goals across agents **and getting the entire path for u_jgr**.
+* `new_cu_diffgoal_path_jgr`: executes `cu_jgr` if agents in range are less than 5, else executes `new_cu_diffgoal_path`. Number of agents 5 was selected after experimentation.
 """
 
 def calc_umnm(a, agents):
@@ -1304,7 +1305,8 @@ def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo=
     if a.goal not in goals:
       goals[a.goal] = 1
     elif a.goal != (a.x, a.y) and len(un_coords_all) >= len(agents):
-      while a.goal in goals and len(un_coords[a_i]) > 1:
+      # while a.goal in goals and len(un_coords[a_i]) > 1:
+      while a.goal in goals and len(un_coords[a_i]) > len(agents):
         un_coords[a_i].remove(list(a.goal))
         a.goal = cost_utility_new(a.x, a.y, un_coords[a_i], a.explored_stage, agents, a.view_range, algo=algo)
       if a.goal not in goals:
@@ -1312,10 +1314,11 @@ def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo=
 
   goals = {}
   for a_i, a in enumerate(agents):
-    if a.goal in goals and len(un_coords[a_i]) > 1 and len(un_coords_all) >= len(agents):
+    # if a.goal in goals and len(un_coords[a_i]) > 1 and len(un_coords_all) >= len(agents):
+    if a.goal in goals and list(a.goal) in un_coords[a_i] and len(un_coords[a_i]) > len(agents) and len(un_coords_all) >= len(agents):
       goals[a.goal] += 1
       print(un_coords)
-      print(f"Same goal {a.goal} appeared {goals[a.goal]} times.")# {test_i}")
+      print(f"Same goal {a.goal} appeared {goals[a.goal]} times. Agent number {len(agents)} | Unexplored coords for agent: {len(un_coords[a_i])} | All the unexplored coords {len(un_coords_all)}")# {test_i}")
     else:
       goals[a.goal] = 1
 

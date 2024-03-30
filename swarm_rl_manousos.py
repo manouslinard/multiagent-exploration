@@ -1092,7 +1092,7 @@ def cost_utility_bso(agents, frontiers, explored_stage):
 
 <u>New Utility Function:</u>
 
-We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and for each cell/frontier $a$ we calculate:
+We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and for each cell/frontier $a$ **that is closer to the agent** we calculate:
 
 $$
 utility(a) = N(u_{mnm}(a)) + N(u_{jgr}(a))
@@ -1130,6 +1130,8 @@ utility(a) = N(u_{mnm}(a)) + N(u_{jgr}(a)) + N(u_{hedac}(a))
 $$
 
 where $N(u_{hedac}(a))$ the normalized attractive field of cell $a$ according to `HEDAC`.
+
+<u>Comment:</u> The HEDAC matrix is calculated once per round, similar to the normal HEDAC computation. However, instead of recalculating it every round, we compute it only when the distances of the nearest-frontier cells are the same. Subsequently, we store the calculated HEDAC matrix within an agent, which can then share the matrix with other available agents as needed. When the round finishes, we delete the matrix from the agent. This approach eliminates the need for recalculating the matrix in every round, **thereby optimizing computational efficiency**.
 
 <br>
 <u>Forcing Different Frontiers</u>:
@@ -1481,6 +1483,7 @@ This new flood fill approach combines the methods from previous cost-utility met
 * `NEW_FF_HEDAC`: combines flood fill with the proposed algorithm for maze exploration of *<u>Crnković, B., Ivić, S., & Zovko, M. (2023). Fast algorithm for centralized multi-agent maze exploration. arXiv preprint arXiv:2310.02121.</u>*
 * `NEW_FF_CU_DIFFGOAL`: previously proposed cost utility method (without hedac) and also **substracts the (normalized) number of times the cell has been visited for less attractive force**, to avoid repetition of cells.
 * `NEW_FF_CU_HEDAC_DIFFGOAL`: previously proposed cost utility method (with hedac)and also **substracts the (normalized) number of times the cell has been visited for less attractive force**, to avoid repetition of cells.
+* `NEW_FF_JGR`: flood fill combined with cost utility jgr.
 
 **These methods are executed when agent has equality in distances (of flood fill) to select best cell to go.**
 
@@ -1516,6 +1519,10 @@ def select_flood_fill(algo, agent, all_agents, total_explored, stepped_cells, mi
         u = calc_new_util(all_agents, total_explored, hedac=False)
     elif algo == 'new_ff_cu_hedac_diffgoal':
         u = calc_new_util(all_agents, total_explored, hedac=True)
+    elif algo == 'new_ff_jgr':
+        u = np.full_like(total_explored, 0)
+        for u_c in min_indices_list:
+            u[u_c] = calc_ujgr(u_c, agent.view_range, total_explored)
 
     visited_matrix = np.zeros_like(total_explored)
     for c in stepped_cells:
@@ -1528,7 +1535,7 @@ def select_flood_fill(algo, agent, all_agents, total_explored, stepped_cells, mi
 """#### Function for running Flood Fill:"""
 
 def move_ff_coverage(start_grid, start_agents, algo='ff_default', coverage_finish = 1.0, debug=False, save_images=False):
-    if algo not in ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal']:
+    if algo not in ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal', 'new_ff_jgr']:
         warnings.warn(f"Requested flood fill algorithm '{algo}' has not been implemented. Implementing 'default' flood fill.")
         algo = 'ff_default'
 
@@ -1870,7 +1877,7 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
     if coverage_mode:
       if algo == 'hedac':
         res = move_hedac_coverage(start_grid=grid, agents=agents, alpha=alpha, coverage_finish=coverage_finish, max_iter=max_hedac_iter, debug=debug, save_images=save_images)
-      elif algo in ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal']:
+      elif algo in ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal', 'new_ff_jgr']:
         res = move_ff_coverage(start_grid=grid, start_agents=agents, algo=algo, coverage_finish=coverage_finish, debug=debug, save_images=save_images)
       elif not voronoi_mode:
         res = move_nf_coverage(start_grid=grid, start_agents=agents, coverage_finish = coverage_finish, debug=debug, algo=algo, lambda_=lambda_, save_images=save_images)
@@ -2040,10 +2047,6 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
         # path = f'{parent_parent_dir}/{algo}/{rows}x{cols}/p_{algo}_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}'
         path = os.path.join(parent_parent_dir, algo, f"{rows}x{cols}", f"{algo}_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}")
 
-        if algo == 'cu_jgr':
-           path_all += f"_{lambda_}"
-           path += f"_{lambda_}"
-
         df_all = pd.concat(df_all, ignore_index=True, axis=0)
         if os.path.exists(path_all+".xlsx"):
           df_tmp = pd.read_excel(path_all+".xlsx")
@@ -2069,7 +2072,7 @@ coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
 alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.8 # used in cost-utility jgr
 voronoi_mode = False
-algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal']
+algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
 for t_algo in algos:
   for agents_num_list_i in agents_num_list:
     run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

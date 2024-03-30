@@ -1329,6 +1329,12 @@ def update_goals(agents, total_explored, start=False, algo='nf', lambda_=0.8, vo
   if len(unexpl_coords) <= 0:
     return
 
+  # new_cu_diffgoal_path_jgr impl:
+  if algo == 'new_cu_diffgoal_path_jgr' and len(agents) <= 5:
+    algo = 'cu_jgr'
+  elif algo == 'new_cu_diffgoal_path_jgr' and len(agents) > 5:
+    algo = 'new_cu_diffgoal_path'
+
   diffgoal_algos = ['new_cu_diffgoal', 'new_cu_hedac_diffgoal', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path']
 
   if algo in diffgoal_algos:
@@ -1868,7 +1874,7 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
     if count_false > 4:
       break
 
-    print(f"Test: {i}")
+    print(f"Test: {i}") if not voronoi_mode else print(f'Test: {i} / Voronoi')
     if start_grid is None:
       grid = gen_stage_func()
     else:
@@ -2043,21 +2049,21 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
             os.remove(path_all)
 
         # path_all = f'{parent_parent_dir}/{algo}/{rows}x{cols}/all/p_{algo}_all_{rows}x{cols}_{coverage_mode}_{agent_view}'
-        path_all = os.path.join(parent_parent_dir, algo, f"{rows}x{cols}", "all", f"{algo}_all_{rows}x{cols}_{coverage_mode}_{agent_view}")
+        path_all = os.path.join(parent_parent_dir, algo, f"{rows}x{cols}", "all", f"{algo}_all_{rows}x{cols}_{coverage_mode}_{agent_view}.xlsx")
         # path = f'{parent_parent_dir}/{algo}/{rows}x{cols}/p_{algo}_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}'
-        path = os.path.join(parent_parent_dir, algo, f"{rows}x{cols}", f"{algo}_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}")
+        path = os.path.join(parent_parent_dir, algo, f"{rows}x{cols}", f"{algo}_{rows}x{cols}_{coverage_mode}_{agent_view}_{num_test}.xlsx")
 
         df_all = pd.concat(df_all, ignore_index=True, axis=0)
-        if os.path.exists(path_all+".xlsx"):
-          df_tmp = pd.read_excel(path_all+".xlsx")
+        if os.path.exists(path_all):
+          df_tmp = pd.read_excel(path_all)
           df_all = pd.concat([df_tmp, df_all], axis=0)
-        df_all.to_excel(path_all+".xlsx", index=False)
+        df_all.to_excel(path_all, index=False)
 
         df = pd.concat(df, ignore_index=True, axis=0)
-        if os.path.exists(path+".xlsx"):
-          df_tmp = pd.read_excel(path+".xlsx")
+        if os.path.exists(path):
+          df_tmp = pd.read_excel(path)
           df = pd.concat([df_tmp, df], axis=0)
-        df.to_excel(path+".xlsx", index=False)
+        df.to_excel(path, index=False)
 
 """Running the experiments:"""
 
@@ -2072,7 +2078,8 @@ coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
 alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.8 # used in cost-utility jgr
 voronoi_mode = False
-algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
+# algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
+algos = ['new_cu_diffgoal_path', 'hedac', 'cu_mnm', 'cu_jgr', 'ff_default', 'nf', 'cu_bso']
 for t_algo in algos:
   for agents_num_list_i in agents_num_list:
     run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

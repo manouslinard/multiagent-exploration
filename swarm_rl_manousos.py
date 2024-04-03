@@ -1180,6 +1180,8 @@ def calc_ujgr(a, Rs, explored_stage):
   return calculate_utility_jgr(a[0], a[1], Rs, explored_stage) * (np.pi * (Rs**2))
 
 def norm_values(u):
+  if np.all(u == 0):
+    return u
   min_v = np.min(u)
   max_v = np.max(u)
   return (u - min_v) / (max_v - min_v)

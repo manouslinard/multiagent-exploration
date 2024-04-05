@@ -534,6 +534,16 @@ def find_unexp_voronoi(agent):
 
 Here follow some metrics discussed in the paper and used in our experiments.
 
+#### Exploration Time:
+
+Calculates the exploration time, from start to entire maze coverage. For our implementation, the agents run sequentially, thats why to calculate the exploration time, we use the following formula:
+
+$$
+explorationTime(n) = \frac{\sum_{i=1}^{n} t_{s_i}}{n} \cdot R
+$$
+
+where $t_{s_i}$ is the time needed for an agent to make a step, $R$ is the number of rounds, and $n$ is the number of robots.
+
 #### Map Completeness:
 
 **Calculates the explored percentage of the total explored stage**. According to the paper [above](https://yzrobot.github.io/publications/yz15iros.pdf), it is based on the formula:
@@ -631,7 +641,7 @@ def move_astar(start_grid, start_agents, debug=True):
   total_explored = update_total_explored(agents)
   total_agents = len(agents)
   # print(total_agents)
-  avg_eps_time = []
+  round_time_list = []
   avg_rounds = []
   num_finish = 0
 
@@ -662,7 +672,7 @@ def move_astar(start_grid, start_agents, debug=True):
             path_none += 1
           agent.agent_view(start_grid)
           total_explored = update_total_explored(agents)
-      avg_eps_time.append(time.time() - eps_start_time)
+      round_time_list.append(time.time() - eps_start_time)
       if path_none >= len(agents): # stops if no agents have moved.
           print(path_none, len(agents))
           print("STOP PATH NONE")
@@ -673,7 +683,7 @@ def move_astar(start_grid, start_agents, debug=True):
       num_finish += 1
       avg_rounds.append(rounds)
 
-  return calculate_expl_percentage(total_explored), rounds, np.mean(avg_rounds), np.mean(avg_eps_time), num_finish / total_agents, total_explored
+  return calculate_expl_percentage(total_explored), rounds, np.mean(avg_rounds), np.sum(round_time_list), num_finish / total_agents, total_explored
 
 """# Agents Explore Stage (*)
 **This section is researched in my thesis.** It contains the algorithms used for maze exploration (HEDAC, nearest frontier, etc). Also, it proposes new method(s) for maze exploration.
@@ -835,7 +845,7 @@ def move_hedac_coverage(agents, start_grid, coverage_finish = 1.0, alpha=10, max
 
     total_explored = update_total_explored(agents, True)
 
-    avg_eps_time = []
+    round_time_list = []
     rounds = 0
     count_same = 0
     sum_dist = 0
@@ -857,7 +867,7 @@ def move_hedac_coverage(agents, start_grid, coverage_finish = 1.0, alpha=10, max
             visited_nodes.add(next_position)
             i.agent_view(start_grid)
             total_explored = update_total_explored(agents, True)    # A function to exchange information about discovered nodes between agents
-        avg_eps_time.append(time.time() - eps_start_time)
+        round_time_list.append(time.time() - eps_start_time)
         if np.all(old_grid == grid):    # checks if agents are stuck (does not happen, but just in case)
             count_same += 1
             if count_same >= int(max_iter / 10):
@@ -865,7 +875,7 @@ def move_hedac_coverage(agents, start_grid, coverage_finish = 1.0, alpha=10, max
 
     re = check_real_expl(start_grid, total_explored)  # gets the difference of explored & real grid
 
-    return re[1], rounds, total_explored, np.mean(avg_eps_time), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
+    return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
 
 """## **Cost Utility**: Adds utility for better frontier selection.
 
@@ -1171,8 +1181,8 @@ The above proposals and alternatives have been implemented in the code below. Al
 def calc_umnm(a, agents):
   utility = 0
   for i in agents:
-    if i.x == a[0] and i.y == a[1]: # ignores
-        continue
+    # if i.x == a[0] and i.y == a[1]: # ignores
+    #     continue
     utility += abs(a[0] - i.x) + abs(a[1] - i.y)  # manhattan
   return utility
 
@@ -1399,7 +1409,7 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
 
   update_goals(agents, total_explored, True, algo=algo, lambda_=lambda_)  # create new goal.
 
-  avg_eps_time = []
+  round_time_list = []
   rounds = 0
   sum_dist = 0
 
@@ -1433,7 +1443,7 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
       update_goals(agents, total_explored, algo=algo, lambda_=lambda_)
       # print("Rounds:", rounds)
 
-      avg_eps_time.append(time.time() - eps_start_time)
+      round_time_list.append(time.time() - eps_start_time)
       if path_none >= len(agents): # stops if no agents have moved.
           # print(path_none, len(agents))
           print("STOP PATH NONE")
@@ -1441,7 +1451,7 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
 
   re = check_real_expl(start_grid, total_explored)  # gets the difference of explored & real grid
 
-  return re[1], rounds, total_explored, np.mean(avg_eps_time), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
+  return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
 
 """## **Flood Fill**: Executes flood fill algorithm to explore the maze.
 
@@ -1558,7 +1568,7 @@ def move_ff_coverage(start_grid, start_agents, algo='ff_default', coverage_finis
     total_explored = update_total_explored(agents, True)
     stepped_cells = {(a.x, a.y): 1 for a in agents}
 
-    avg_eps_time = []
+    round_time_list = []
     rounds = 0
     sum_dist = 0
 
@@ -1588,11 +1598,11 @@ def move_ff_coverage(start_grid, start_agents, algo='ff_default', coverage_finis
             total_explored = update_total_explored(agents, True)
             if old_agent_pos != (a.x, a.y):
                 sum_dist += 1
-        avg_eps_time.append(time.time() - eps_start_time)
+        round_time_list.append(time.time() - eps_start_time)
 
     re = check_real_expl(start_grid, total_explored)  # gets the difference of explored & real grid
 
-    return re[1], rounds, total_explored, np.mean(avg_eps_time), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
+    return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
 
 """## **Submaps Exploration**: Splits the maze to submaps for exploring
 
@@ -1771,7 +1781,7 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
     update_goals(agents_list, total_explored, True, algo=algo, lambda_=lambda_, voronoi_mode=True)  # create new goal.
     see_goals(agents_list, calculate_expl_percentage(total_explored))
 
-  avg_eps_time = []
+  round_time_list = []
   rounds = 0
   sum_dist = 0
   while calculate_expl_percentage(total_explored) < coverage_finish:
@@ -1808,7 +1818,7 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
         update_goals(agents_list, total_explored, True, algo=algo, lambda_=lambda_, voronoi_mode=True)
         see_goals(agents_list, calculate_expl_percentage(total_explored))
 
-      avg_eps_time.append(time.time() - eps_start_time)
+      round_time_list.append(time.time() - eps_start_time)
       if path_none >= len(agents): # stops if no agents have moved.
           # print(path_none, len(agents))
           print("STOP PATH NONE")
@@ -1816,7 +1826,7 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
 
   re = check_real_expl(start_grid, total_explored)  # gets the difference of explored & real grid
 
-  return re[1], rounds, total_explored, np.mean(avg_eps_time), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
+  return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
 
 """# Experiment Functions (*):
 These functions are part of the main experiments used in my thesis. It contains:
@@ -1835,7 +1845,7 @@ def save_xlsx(file_path: str, new_row: dict):
       "Coverage": avg_cover,
       "Finished_Agents": avg_finish,
       "Experiment_Time": avg_expt_time,
-      "Episode_Time": avg_eps_time,
+      "Episode_Time": round_time_list,
       "Agent_Finish_Time": avg_agent_time,
       "Dimensions": (maze_dim, maze_dim)
   }
@@ -1897,17 +1907,17 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
       # if res[0] != 1.0:
       #   count_false += 1
       if file_path is not None:
-        save_xlsx(file_path, {"#_Agents":num_agents, "Coverage": res[0], "Total_Rounds": res[1], "Expl_Cost": res[4], "Expl_Eff": res[5], "Avg_Round_Time": res[3], "Avg_Agent_Step_Time": res[3]/num_agents, "Experiment_Time": res[1]*(res[3]/num_agents), "Obs_Prob": params["obs_prob"], "Test": i})
+        save_xlsx(file_path, {"#_Agents":num_agents, "Coverage": res[0], "Total_Rounds": res[1], "Expl_Cost": res[4], "Expl_Eff": res[5], "Avg_Round_Time": res[3]/res[1], "Avg_Agent_Step_Time": res[3]/num_agents, "Experiment_Time": res[1]*(res[3]/num_agents), "Obs_Prob": params["obs_prob"], "Test": i})
       avg_expl_cost.append(res[4])
       avg_expl_eff.append(res[5])
     else:
       res = move_astar(start_grid=grid, start_agents=agents, debug=debug)
       if file_path is not None:
-        save_xlsx(file_path, {"#_Agents":num_agents, "Coverage": res[0], "Total_Rounds": res[1], "Avg_Rounds": res[2], "Avg_Round_Time": res[3], "Finished_Agents": res[4], "Avg_Agent_Step_Time": res[3]/num_agents, "Experiment_Time": res[1]*(res[3]/num_agents), "Obs_Prob": params["obs_prob"], "Test": i})
+        save_xlsx(file_path, {"#_Agents":num_agents, "Coverage": res[0], "Total_Rounds": res[1], "Avg_Rounds": res[2], "Avg_Round_Time": res[3]/res[1], "Finished_Agents": res[4], "Avg_Agent_Step_Time": res[3]/num_agents, "Experiment_Time": res[1]*(res[3]/num_agents), "Obs_Prob": params["obs_prob"], "Test": i})
     avg_cover.append(res[0])
     total_rounds.append(res[1])
     avg_exp_time.append(res[1]*(res[3]/num_agents))
-    avg_round_time.append(res[3])
+    avg_round_time.append(res[3]/res[1])
     avg_agent_step_time.append(res[3]/num_agents)
     # if res[0] != 1:
     #   draw_maze(res[2])

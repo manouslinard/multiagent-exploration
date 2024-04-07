@@ -21,8 +21,6 @@ warnings.filterwarnings('ignore')
 def check_run_colab() -> bool:
     return bool('google.colab' in sys.modules)
 
-"""Mount Google Drive:"""
-
 # Check if the current environment is Google Colab
 if check_run_colab():
     print("Running in Google Colab!")
@@ -31,7 +29,7 @@ if check_run_colab():
 else:
     print("Not running in Google Colab.")
 
-"""The Agent Class:"""
+"""#### The Agent Class:"""
 
 class Agent:
 
@@ -106,7 +104,7 @@ class Agent:
       return True
     return False
 
-"""**A\* Algorithm** (source [here](https://pypi.org/project/python-astar/)): : Produces a path from start to end using DFS."""
+"""#### **A\* Algorithm** (source [here](https://pypi.org/project/python-astar/)): Produces a path from start to end using A\*."""
 
 """
 Python-astar - A* path search algorithm
@@ -251,43 +249,7 @@ class AStar:
         self.open_tiles.remove(tile)
         self.closed_tiles.add(tile)
 
-"""**DFS Algorithm**: Produces a path from start to end using DFS."""
-
-def dfs_path(start_maze, start, end):
-    maze = copy.deepcopy(start_maze)
-    maze = np.where(maze == 2, 1, maze)
-    maze = np.where(maze == -1, 0, maze)
-    nrows, ncols = maze.shape
-
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-
-    visited = np.zeros_like(maze, dtype=bool)
-
-    def dfs_helper(x, y, path):
-        visited[x, y] = True
-
-        path.append((x, y))
-
-        if (x, y) == end:
-            return True
-
-        for dx, dy in directions:
-            nx, ny = x + dx, y + dy
-
-            if 0 <= nx < nrows and 0 <= ny < ncols and not visited[nx, ny] and maze[nx, ny] == 0:
-                if dfs_helper(nx, ny, path):
-                    return True
-
-        path.pop()
-        return False
-
-    path = []
-
-    dfs_helper(start[0], start[1], path)
-
-    return path if path else None
-
-"""**Flood Fill**: Executes flood fill and produces a matrix of distances for an agent."""
+"""#### **Flood Fill**: Executes flood fill and produces a matrix of distances for an agent."""
 
 def flood_fill(expl_maze, start, return_start_pos=True):
     # function inputs: expl_maze = explored maze of agent, start = the position of the agent.
@@ -313,6 +275,58 @@ def flood_fill(expl_maze, start, return_start_pos=True):
         distances[start] = 0
 
     return distances
+
+"""#### **Dijkstra**: Produces a path from start to end using Dijkstra."""
+
+import heapq
+
+def dijkstra_path(start_grid, start, end):
+    grid = copy.deepcopy(start_grid)
+    grid = np.where(grid == 2, 1, grid)
+    grid = np.where(grid == -1, 0, grid)
+    rows, cols = grid.shape
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, Down, Left, Right
+
+    # Priority queue for Dijkstra's algorithm
+    pq = []
+    heapq.heappush(pq, (0, start))  # (cost, (x, y))
+
+    # Distance map to keep track of shortest distances from start
+    distances = np.inf * np.ones((rows, cols))
+    distances[start] = 0
+
+    # Parent map to reconstruct the path
+    parent = {}
+
+    while pq:
+        current_cost, (x, y) = heapq.heappop(pq)
+
+        if (x, y) == end:
+            break
+
+        # Explore neighbors
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < rows and 0 <= ny < cols and grid[nx, ny] == 0:
+                new_cost = current_cost + 1  # Assuming each move has cost 1
+
+                if new_cost < distances[nx, ny]:
+                    distances[nx, ny] = new_cost
+                    heapq.heappush(pq, (new_cost, (nx, ny)))
+                    parent[(nx, ny)] = (x, y)
+
+    # Reconstruct path from end to start using parent map
+    path = []
+    if (end in parent) or end == start:
+        step = end
+        while step in parent:
+            path.append(step)
+            step = parent[step]
+        path.append(start)
+        path.reverse()
+
+    return path if path else None
 
 """# Stage/Maze (*)
 This section contains code for:
@@ -753,11 +767,17 @@ def move_astar(start_grid, start_agents, debug=True):
 """# Agents Explore Stage (*)
 **This section is researched in my thesis.** It contains the algorithms used for maze exploration (HEDAC, nearest frontier, etc). Also, it proposes new method(s) for maze exploration.
 
+<u>Comment</u>: We employ Dijkstra's algorithm to identify the nearest frontiers, as it efficiently calculates the shortest paths, thereby determining the nearest frontiers. This approach is also recommended by:
+
+* Juliá, M., Gil, A., & Reinoso, Ó. (2012). A comparison of path planning strategies for autonomous exploration and mapping of unknown environments. Autonomous Robots, 33(4), 427–444. https://doi.org/10.1007/s10514-012-9298-8
+
+Juliá's survey comprehensively examined various implemented algorithms, including the nearest frontier method from Yamauchi. According to Juliá, Dijkstra's algorithm is specifically utilized **in praxis** for determining the nearest frontiers. Therefore, for Yamauchi's nearest frontiers, and in the context of Julia's cost utility and other **<u>baseline methods</u>** (like cu_bso) **where the calculation of nearest frontiers is not explicitly defined**, we adopt Dijkstra's algorithm for this purpose.
+
+<u>The proposed cost-utility differs from this by using **flood fill** to find the nearest frontiers.</u>
+
 ## **Nearest Frontier**: Selects the closest unexplored frontier.
 
 <u>Citation</u>: Yamauchi, B. (1998, May). Frontier-based exploration using multiple robots. In Proceedings of the second international conference on Autonomous agents (pp. 47-53).
-
-Goes to the nearest frontier. To calculate the distance and to choose the nearest frontier, Yamauchi used DFS.
 """
 
 def nearest_frontier(x, y, unexpl_coords, explored_stage) -> tuple:
@@ -765,7 +785,7 @@ def nearest_frontier(x, y, unexpl_coords, explored_stage) -> tuple:
     min_path = np.inf
     min_coord = (x, y)
     for u_c in unexpl_coords:
-      path = dfs_path(explored_stage, (x, y), tuple(u_c))
+      path = dijkstra_path(explored_stage, (x, y), tuple(u_c))
       if path is not None and len(path) <= min_path:
         min_path = len(path)
         min_coord = tuple(u_c)
@@ -1029,8 +1049,6 @@ C(a) = \frac{L(a)}{\max_{b\in F} L(b)}
 $$
 
 where $L(a)$ is the length of the shortest path to reach the cell $a$.
-
-<u>Comment:</u> The article does not explicitly specify the method for calculating cost distances. However, it indirectly suggests using the nearest-frontier approach by Yamauchi for this purpose. Therefore, we will implement DFS (Depth-First Search) based on Yamauchi's original paper to compute the cost distances.
 """
 
 def calculate_utility_jgr(x, y, view_range, explored_stage):
@@ -1096,7 +1114,7 @@ def cost_utility_jgr(x, y, unexpl_coords, explored_stage, agent_view, lambda_=0.
     max_path = -1
     for u_c in unexpl_coords:
       # path = AStar(explored_stage, coverage_mode=True).search((x, y), tuple(u_c))
-      path = dfs_path(explored_stage, (x, y), tuple(u_c))
+      path = dijkstra_path(explored_stage, (x, y), tuple(u_c))
       if path is not None:
         L[tuple(u_c)] = len(path)
         if len(path) > max_path:
@@ -1133,8 +1151,6 @@ def cost_utility_jgr(x, y, unexpl_coords, explored_stage, agent_view, lambda_=0.
 2. Set $\alpha_{ij} = \begin{cases} 1 & \text{if } j = \arg\min P_{ij}, F_j \in F \\ 0 & \text{otherwise} \end{cases}$.
 
     In case of equality, choose the minimum cost among $\min P_{ij}$.
-
-<u>Comment:</u> The article does not specify which method to use for calculating the cost matrix distances. Given the comparison with the nearest-frontier approach, we will implement DFS (Depth-First Search) based on Yamauchi's original paper to compute the cost matrix.
 """
 
 def compute_bso_cost_matrix(agents, frontiers, explored_stage):
@@ -1143,7 +1159,7 @@ def compute_bso_cost_matrix(agents, frontiers, explored_stage):
     for i, a in enumerate(agents):
         for j, frontier in enumerate(frontiers):
             # path = AStar(explored_stage, coverage_mode=True).search((a.x, a.y), tuple(frontier))
-            path = dfs_path(explored_stage, (a.x, a.y), tuple(frontier))
+            path = dijkstra_path(explored_stage, (a.x, a.y), tuple(frontier))
             if path is not None:
                 cost_matrix[i][j] = len(path)
 
@@ -1177,7 +1193,7 @@ def cost_utility_bso(agents, frontiers, explored_stage):
 
 <u>New Utility Function:</u>
 
-We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and we calculate first the nearest-frontiers **using flood-fill**. Then, for each cell/frontier $a$ **that is closer to the agent** we calculate:
+We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and we calculate first the nearest-frontiers **<u>using flood-fill</u>**. Then, for each cell/frontier $a$ **that is closer to the agent** we calculate:
 
 $$
 utility(a) = N(u_{mnm}(a)) + N(u_{jgr}(a))

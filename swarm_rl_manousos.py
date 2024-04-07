@@ -446,6 +446,7 @@ def images_to_gif(gif_filename=f"maze_{time.time()}.gif", duration=300, image_fo
 
     for image_file in image_files:
         os.remove(os.path.join(image_folder, image_file))
+    time.sleep(1)
 
 """Create a stage with obstacles (1) and free path (0)."""
 
@@ -771,9 +772,9 @@ def move_astar(start_grid, start_agents, debug=True):
 
 * Juliá, M., Gil, A., & Reinoso, Ó. (2012). A comparison of path planning strategies for autonomous exploration and mapping of unknown environments. Autonomous Robots, 33(4), 427–444. https://doi.org/10.1007/s10514-012-9298-8
 
-Juliá's survey comprehensively examined various implemented algorithms, including the nearest frontier method from Yamauchi. According to Juliá, Dijkstra's algorithm is specifically utilized **in praxis** for determining the nearest frontiers. Therefore, for Yamauchi's nearest frontiers, and in the context of Julia's cost utility and other **<u>baseline methods</u>** (like cu_bso) **where the calculation of nearest frontiers is not explicitly defined**, we adopt Dijkstra's algorithm for this purpose.
+Juliá's survey comprehensively examined various implemented algorithms, including the nearest frontier method from Yamauchi. According to Juliá, Dijkstra's algorithm is specifically utilized **in praxis** for determining the nearest frontiers **and** the shortest path afterwards. Therefore, for Yamauchi's nearest frontiers, and in the context of Julia's cost utility and other **<u>baseline methods</u>** (like cu_bso) **where the calculation of nearest frontiers is not explicitly defined**, we adopt Dijkstra's algorithm for this purpose. Lastly, for the final pathfinding of the shortest path, we use again Dijkstra, since it is fast and returns the shortest path for maze exploration (because the cost is positive).
 
-<u>The proposed cost-utility differs from this by using **flood fill** to find the nearest frontiers.</u>
+<u>The proposed cost-utility differs from this by using **flood fill** to find the nearest frontiers.</u> Then it uses Dijkstra to go to the selected nearest frontier.
 
 ## **Nearest Frontier**: Selects the closest unexplored frontier.
 
@@ -1299,7 +1300,8 @@ def calc_new_util_path(x, y, agents, total_explored, close_coords=None, Rs=2, he
     u_mnm[u_c] = calc_umnm(u_c, agents)
 
     # calculate u_jgr
-    path = AStar(total_explored, coverage_mode=True).search((x, y), u_c)
+    # path = AStar(total_explored, coverage_mode=True).search((x, y), u_c)
+    path = dijkstra_path(total_explored, (x, y), u_c)
     sum_ujr = 0
     for coord in path:
       sum_ujr += calc_ujgr(tuple(coord), Rs, total_explored)
@@ -1518,7 +1520,8 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
       path_none = 0
       agents[0].u_hedac = None
       for agent in agents:
-          path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
+          # path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
+          path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
           if debug:
             # print(len(agents), len(np.argwhere(total_explored == -1)))
             draw_maze(agent.explored_stage, path=path, save_gif=save_images)
@@ -1775,7 +1778,8 @@ def update_voronoi_regions(agents, total_explored, v_map):
         for i in range(v_map_tmp.shape[0]):
             for j in range(v_map_tmp.shape[1]):
                 if v_map_tmp[(i, j)] != -1:
-                    path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), (i, j))
+                    # path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), (i, j))
+                    path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), (i, j))
                     if path is not None and len(path) < min_distance:
                         min_distance = len(path)
                         min_v_part = v_map_tmp[(i, j)]
@@ -1857,7 +1861,8 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
       path_none = 0
       agents[0].u_hedac = None
       for i, agent in enumerate(agents):
-          path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
+          # path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
+          path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
           if debug:
             draw_maze_voronoi(v_map, agent.explored_stage, path=path, save_gif=save_images)
 
@@ -2153,7 +2158,7 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
 agents_num_list = [[1, 2, 4, 6], [8, 10]]
 rows = 15
 cols = 15
-num_test = 500
+num_test = 1000
 obs_prob = 0.85
 agent_view = 2
 coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
@@ -2161,7 +2166,7 @@ alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.8 # used in cost-utility jgr
 voronoi_mode = False
 # algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
-algos = ['new_cu_diffgoal_path', 'hedac', 'cu_mnm', 'cu_jgr', 'ff_default', 'nf', 'cu_bso']
+algos = ['new_cu_diffgoal_path', 'cu_jgr', 'nf', 'cu_bso']
 for t_algo in algos:
   for agents_num_list_i in agents_num_list:
     run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

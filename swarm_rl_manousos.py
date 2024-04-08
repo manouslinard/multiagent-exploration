@@ -13,6 +13,7 @@ from IPython import get_ipython
 from scipy.spatial.distance import cdist
 from PIL import Image
 import re
+import collections
 
 from sklearn.preprocessing import MinMaxScaler
 import warnings
@@ -249,9 +250,9 @@ class AStar:
         self.open_tiles.remove(tile)
         self.closed_tiles.add(tile)
 
-"""#### **Flood Fill**: Executes flood fill and produces a matrix of distances for an agent."""
+"""#### **Flood Fill**"""
 
-def flood_fill(expl_maze, start, return_start_pos=True):
+def flood_fill(expl_maze, start):
     # function inputs: expl_maze = explored maze of agent, start = the position of the agent.
     maze = copy.deepcopy(expl_maze)
     maze = np.where(maze == 2, 1, maze)
@@ -271,12 +272,74 @@ def flood_fill(expl_maze, start, return_start_pos=True):
 
     # if no where left to go, stays where it is. Else, goes away from start pos.
     distances[start] = np.inf
-    if np.all(distances == np.inf) and return_start_pos:
+    if np.all(distances == np.inf):
         distances[start] = 0
 
     return distances
 
-"""#### **Dijkstra**: Produces a path from start to end using Dijkstra."""
+def flood_fill_path(start_grid, start, end):
+    """Returns a path representing the shortest flood fill path."""
+    grid = copy.deepcopy(start_grid)
+    grid = np.where(grid == 2, 1, grid)
+    grid = np.where(grid == -1, 0, grid)
+    rows, cols = grid.shape
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, Down, Left, Right
+
+    # Queue for flood fill exploration
+    queue = collections.deque([start])
+
+    # Distance map to keep track of shortest known distance from start
+    distances = np.inf * np.ones((rows, cols))
+    distances[start] = 0
+
+    # Perform flood fill exploration
+    while queue:
+        x, y = queue.popleft()
+
+        if (x, y) == end:
+            break
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < rows and 0 <= ny < cols and grid[nx, ny] == 0:
+                new_distance = distances[x, y] + 1
+
+                if new_distance < distances[nx, ny]:
+                    distances[nx, ny] = new_distance
+                    queue.append((nx, ny))
+
+    # Check if end coordinate is reachable
+    if distances[end] == np.inf:
+        return None  # No path found
+
+    # Reconstruct path from end to start using shortest distance
+    path = []
+    current = end
+
+    while current != start:
+        path.append(current)
+        x, y = current
+
+        # Find the neighbor with the shortest distance
+        min_distance = np.inf
+        next_step = None
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < rows and 0 <= ny < cols and distances[nx, ny] < min_distance:
+                min_distance = distances[nx, ny]
+                next_step = (nx, ny)
+
+        current = next_step
+
+    path.append(start)
+    path.reverse()
+
+    return path
+
+"""#### **Dijkstra**"""
 
 import heapq
 
@@ -327,6 +390,110 @@ def dijkstra_path(start_grid, start, end):
         path.reverse()
 
     return path if path else None
+
+def dijkstra(start_grid, start):
+    grid = copy.deepcopy(start_grid)
+    grid = np.where(grid == 2, 1, grid)
+    grid = np.where(grid == -1, 0, grid)
+    rows, cols = grid.shape
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, Down, Left, Right
+
+    # Priority queue for Dijkstra's algorithm
+    pq = []
+    heapq.heappush(pq, (0, start))  # (cost, (x, y))
+
+    # Distance matrix to store shortest distances from the start point
+    distances = np.full((rows, cols), np.inf)
+    distances[start] = 0  # Distance to the start point is 0
+
+    # Perform Dijkstra's algorithm
+    while pq:
+        current_cost, (x, y) = heapq.heappop(pq)
+
+        # If the popped node's cost exceeds its current recorded cost, skip
+        if current_cost > distances[x, y]:
+            continue
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < rows and 0 <= ny < cols and grid[nx, ny] == 0:
+                new_cost = current_cost + 1  # Assuming each move has cost 1
+
+                if new_cost < distances[nx, ny]:
+                    distances[nx, ny] = new_cost
+                    heapq.heappush(pq, (new_cost, (nx, ny)))
+
+    return distances
+
+"""#### **Wavefront**"""
+
+def wavefront(start_grid, start):
+    grid = copy.deepcopy(start_grid)
+    grid = np.where(grid == 2, 1, grid)
+    grid = np.where(grid == -1, 0, grid)
+    rows, cols = grid.shape
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, Down, Left, Right
+
+    # Queue for wavefront expansion
+    queue = collections.deque([start])
+
+    # Distance matrix to store shortest distances from the end point
+    distances = np.full((rows, cols), np.inf)
+    distances[start] = 0  # Distance to the end point is 0
+
+    # Perform wavefront propagation
+    while queue:
+        x, y = queue.popleft()
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < rows and 0 <= ny < cols and grid[nx, ny] == 0:
+                new_distance = distances[x, y] + 1
+
+                if new_distance < distances[nx, ny]:
+                    distances[nx, ny] = new_distance
+                    queue.append((nx, ny))
+
+    return distances
+
+from queue import Queue
+
+def wavefront_path(start_grid, start, end):
+    grid = copy.deepcopy(start_grid)
+    grid = np.where(grid == 2, 1, grid)
+    grid = np.where(grid == -1, 0, grid)
+    rows, cols = grid.shape
+    visited = np.zeros_like(grid)
+    queue = Queue()
+    queue.put(start)
+    visited[start] = 1
+
+    while not queue.empty():
+        current = queue.get()
+        if current == end:
+            break
+
+        for dr, dc in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            r, c = current[0] + dr, current[1] + dc
+            if 0 <= r < rows and 0 <= c < cols and grid[r, c] == 0 and visited[r, c] == 0:
+                queue.put((r, c))
+                visited[r, c] = visited[current] + 1
+
+    if visited[end] == 0:
+        return None
+
+    # Reconstruct the path
+    path = [end]
+    while path[-1] != start:
+        for dr, dc in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            r, c = path[-1][0] + dr, path[-1][1] + dc
+            if 0 <= r < rows and 0 <= c < cols and visited[r, c] == visited[path[-1]] - 1:
+                path.append((r, c))
+                break
+
+    return path[::-1]  # Reverse the path to start from start
 
 """# Stage/Maze (*)
 This section contains code for:
@@ -768,29 +935,32 @@ def move_astar(start_grid, start_agents, debug=True):
 """# Agents Explore Stage (*)
 **This section is researched in my thesis.** It contains the algorithms used for maze exploration (HEDAC, nearest frontier, etc). Also, it proposes new method(s) for maze exploration.
 
-<u>Comment</u>: We employ Dijkstra's algorithm to identify the nearest frontiers, as it efficiently calculates the shortest paths, thereby determining the nearest frontiers. This approach is also recommended by:
-
-* Juliá, M., Gil, A., & Reinoso, Ó. (2012). A comparison of path planning strategies for autonomous exploration and mapping of unknown environments. Autonomous Robots, 33(4), 427–444. https://doi.org/10.1007/s10514-012-9298-8
-
-Juliá's survey comprehensively examined various implemented algorithms, including the nearest frontier method from Yamauchi. According to Juliá, Dijkstra's algorithm is specifically utilized **in praxis** for determining the nearest frontiers **and** the shortest path afterwards. Therefore, for Yamauchi's nearest frontiers, and in the context of Julia's cost utility and other **<u>baseline methods</u>** (like cu_bso) **where the calculation of nearest frontiers is not explicitly defined**, we adopt Dijkstra's algorithm for this purpose. Lastly, for the final pathfinding of the shortest path, we use again Dijkstra, since it is fast and returns the shortest path for maze exploration (because the cost is positive).
-
-<u>The proposed cost-utility differs from this by using **flood fill** to find the nearest frontiers.</u> Then it uses Dijkstra to go to the selected nearest frontier.
-
 ## **Nearest Frontier**: Selects the closest unexplored frontier.
 
 <u>Citation</u>: Yamauchi, B. (1998, May). Frontier-based exploration using multiple robots. In Proceedings of the second international conference on Autonomous agents (pp. 47-53).
+
+<u>Comment</u>: We employ Dijkstra's algorithm to identify the nearest frontiers and navigate to them, as it efficiently calculates the shortest paths, thereby determining the nearest frontiers. This approach is recommended by:
+
+*Juliá, M., Gil, A., & Reinoso, Ó. (2012). A comparison of path planning strategies for autonomous exploration and mapping of unknown environments. Autonomous Robots, 33(4), 427–444. https://doi.org/10.1007/s10514-012-9298-8*
 """
 
 def nearest_frontier(x, y, unexpl_coords, explored_stage) -> tuple:
     """Returns the new goal according to nearest frontier."""
     min_path = np.inf
     min_coord = (x, y)
+    dist = dijkstra(explored_stage, (x, y)) + 1
+    dist[(x, y)] = np.inf
+    if np.all(dist == np.inf):   # stays in the same position if it cannot go ananywhere.
+      return min_coord
+
     for u_c in unexpl_coords:
-      path = dijkstra_path(explored_stage, (x, y), tuple(u_c))
-      if path is not None and len(path) <= min_path:
-        min_path = len(path)
+      if dist[tuple(u_c)] < min_path:
+        min_path = dist[tuple(u_c)]
         min_coord = tuple(u_c)
-    # print(f"Length: {min_path} || u_coords length: {len(unexpl_coords)}")
+
+    if min_path == np.inf:  # cannot go to unexplored coords -> stays there.
+      return (x, y)
+
     return min_coord
 
 """## **HEDAC**: Uses Artificial Potential Fields for maze exploration.
@@ -997,8 +1167,9 @@ def cost_utility_mnm(x, y, unexpl_coords, explored_stage, agents) -> tuple:
     min_path = np.inf
     min_path_dict = {}
     target_coord = (x, y)
+    astar_map = AStar(explored_stage, coverage_mode=True)
     for u_c in unexpl_coords:
-      path = AStar(explored_stage, coverage_mode=True).search((x, y), tuple(u_c))
+      path = astar_map.search((x, y), tuple(u_c))
       if path is not None and len(path) <= min_path:
         min_path = len(path)
         target_coord = tuple(u_c)
@@ -1050,6 +1221,8 @@ C(a) = \frac{L(a)}{\max_{b\in F} L(b)}
 $$
 
 where $L(a)$ is the length of the shortest path to reach the cell $a$.
+
+<u>Comment:</u> Julia uses Dijkstra for finding nearest frontiers & shortest path to them.
 """
 
 def calculate_utility_jgr(x, y, view_range, explored_stage):
@@ -1113,13 +1286,14 @@ def calculate_utility_jgr(x, y, view_range, explored_stage):
 def cost_utility_jgr(x, y, unexpl_coords, explored_stage, agent_view, lambda_=0.8) -> tuple:
     L = {}
     max_path = -1
+    dk = dijkstra(explored_stage, (x, y)) + 1
     for u_c in unexpl_coords:
       # path = AStar(explored_stage, coverage_mode=True).search((x, y), tuple(u_c))
-      path = dijkstra_path(explored_stage, (x, y), tuple(u_c))
-      if path is not None:
-        L[tuple(u_c)] = len(path)
-        if len(path) > max_path:
-          max_path = len(path)
+      path_length = dk[tuple(u_c)]
+      if path_length != np.inf:
+        L[tuple(u_c)] = path_length
+        if path_length > max_path:
+          max_path = path_length
 
     max_c = (x, y)
     max_u = -1
@@ -1152,22 +1326,21 @@ def cost_utility_jgr(x, y, unexpl_coords, explored_stage, agent_view, lambda_=0.
 2. Set $\alpha_{ij} = \begin{cases} 1 & \text{if } j = \arg\min P_{ij}, F_j \in F \\ 0 & \text{otherwise} \end{cases}$.
 
     In case of equality, choose the minimum cost among $\min P_{ij}$.
+
+Cost matrix is computed via wavefront propagation.
 """
 
 def compute_bso_cost_matrix(agents, frontiers, explored_stage):
     cost_matrix = np.full((len(agents), len(frontiers)), np.inf)
-
-    for i, a in enumerate(agents):
-        for j, frontier in enumerate(frontiers):
-            # path = AStar(explored_stage, coverage_mode=True).search((a.x, a.y), tuple(frontier))
-            path = dijkstra_path(explored_stage, (a.x, a.y), tuple(frontier))
-            if path is not None:
-                cost_matrix[i][j] = len(path)
-
+    for j, frontier in enumerate(frontiers):
+        wf = wavefront(explored_stage, tuple(frontier)) # wavefront ascending from frontier.
+        for i, _ in enumerate(agents):
+            cost_matrix[i][j] = wf[tuple(frontier)]
     return cost_matrix
 
 def cost_utility_bso(agents, frontiers, explored_stage):
     cost_matrix = compute_bso_cost_matrix(agents, frontiers, explored_stage)
+    # cost_matrix = compute_bso_cost_matrix(frontiers, explored_stage)
     p_matrix = np.zeros((len(agents), len(frontiers)))
 
     for i, a in enumerate(agents):
@@ -1194,7 +1367,7 @@ def cost_utility_bso(agents, frontiers, explored_stage):
 
 <u>New Utility Function:</u>
 
-We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and we calculate first the nearest-frontiers **<u>using flood-fill</u>**. Then, for each cell/frontier $a$ **that is closer to the agent** we calculate:
+We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and we calculate first the nearest-frontiers **<u>using wavefront</u>**. Then, for each cell/frontier $a$ **that is closer to the agent** we calculate:
 
 $$
 utility(a) = N(u_{mnm}(a)) + N(u_{jgr}(a))
@@ -1301,7 +1474,7 @@ def calc_new_util_path(x, y, agents, total_explored, close_coords=None, Rs=2, he
 
     # calculate u_jgr
     # path = AStar(total_explored, coverage_mode=True).search((x, y), u_c)
-    path = dijkstra_path(total_explored, (x, y), u_c)
+    path = wavefront_path(total_explored, (x, y), u_c)
     sum_ujr = 0
     for coord in path:
       sum_ujr += calc_ujgr(tuple(coord), Rs, total_explored)
@@ -1349,7 +1522,8 @@ def cost_utility_new(x, y, unexpl_coords, explored_stage, agents, view_range=2, 
     min_path_dict = {}
     target_coord = (x, y)
 
-    dist_matrix = flood_fill(explored_stage, (x, y), False) + 1
+    dist_matrix = wavefront(explored_stage, (x, y)) + 1
+    dist_matrix[(x, y)] = np.inf
 
     if np.all(dist_matrix == np.inf):   # stays in the same position if it cannot go ananywhere.
       # print("Cannot go anywhere.")
@@ -1520,8 +1694,13 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
       path_none = 0
       agents[0].u_hedac = None
       for agent in agents:
-          # path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
-          path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+          if algo == 'cu_mnm':
+            path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
+          elif algo in ['cu_jgr', 'nf']:
+            path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+          else: # cu_bso and all the new methods.
+            path = wavefront_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+
           if debug:
             # print(len(agents), len(np.argwhere(total_explored == -1)))
             draw_maze(agent.explored_stage, path=path, save_gif=save_images)
@@ -1861,8 +2040,13 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
       path_none = 0
       agents[0].u_hedac = None
       for i, agent in enumerate(agents):
-          # path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
-          path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+          if algo == 'cu_mnm':
+            path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
+          elif algo in ['cu_jgr', 'nf']:
+            path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+          else: # all the new methods.
+            path = wavefront_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+
           if debug:
             draw_maze_voronoi(v_map, agent.explored_stage, path=path, save_gif=save_images)
 

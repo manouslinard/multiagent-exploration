@@ -252,9 +252,13 @@ class AStar:
 
 """#### **Flood Fill**"""
 
-def flood_fill(expl_maze, start):
+def flood_fill(expl_maze, start, agent_obs=True):
     # function inputs: expl_maze = explored maze of agent, start = the position of the agent.
     maze = copy.deepcopy(expl_maze)
+    if agent_obs:   # agents are obstacle.
+        maze = np.where(maze == 2, 1, maze)
+    else:   # agents are not obstacles
+        maze = np.where(maze == 2, 0, maze)
     maze = np.where(maze == 2, 1, maze)
     maze = np.where(maze == -1, 0, maze)
     distances = np.full_like(maze, fill_value=np.iinfo(np.int32).max, dtype=np.float64)
@@ -428,9 +432,12 @@ def dijkstra(start_grid, start):
 
 """#### **Wavefront**"""
 
-def wavefront(start_grid, start):
+def wavefront(start_grid, start, agent_obs=True):
     grid = copy.deepcopy(start_grid)
-    grid = np.where(grid == 2, 1, grid)
+    if agent_obs:   # agents are obstacle.
+        grid = np.where(grid == 2, 1, grid)
+    else:   # agents are not obstacles
+        grid = np.where(grid == 2, 0, grid)
     grid = np.where(grid == -1, 0, grid)
     rows, cols = grid.shape
     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, Down, Left, Right
@@ -935,35 +942,7 @@ def move_astar(start_grid, start_agents, debug=True):
 """# Agents Explore Stage (*)
 **This section is researched in my thesis.** It contains the algorithms used for maze exploration (HEDAC, nearest frontier, etc). Also, it proposes new method(s) for maze exploration.
 
-## **Nearest Frontier**: Selects the closest unexplored frontier.
-
-<u>Citation</u>: Yamauchi, B. (1998, May). Frontier-based exploration using multiple robots. In Proceedings of the second international conference on Autonomous agents (pp. 47-53).
-
-<u>Comment</u>: We employ Dijkstra's algorithm to identify the nearest frontiers and navigate to them, as it efficiently calculates the shortest paths, thereby determining the nearest frontiers. This approach is recommended by:
-
-*Juliá, M., Gil, A., & Reinoso, Ó. (2012). A comparison of path planning strategies for autonomous exploration and mapping of unknown environments. Autonomous Robots, 33(4), 427–444. https://doi.org/10.1007/s10514-012-9298-8*
-"""
-
-def nearest_frontier(x, y, unexpl_coords, explored_stage) -> tuple:
-    """Returns the new goal according to nearest frontier."""
-    min_path = np.inf
-    min_coord = (x, y)
-    dist = dijkstra(explored_stage, (x, y)) + 1
-    dist[(x, y)] = np.inf
-    if np.all(dist == np.inf):   # stays in the same position if it cannot go ananywhere.
-      return min_coord
-
-    for u_c in unexpl_coords:
-      if dist[tuple(u_c)] < min_path:
-        min_path = dist[tuple(u_c)]
-        min_coord = tuple(u_c)
-
-    if min_path == np.inf:  # cannot go to unexplored coords -> stays there.
-      return (x, y)
-
-    return min_coord
-
-"""## **HEDAC**: Uses Artificial Potential Fields for maze exploration.
+## **HEDAC**: Uses Artificial Potential Fields for maze exploration.
 <u>Citation:</u> Crnković, B., Ivić, S., & Zovko, M. (2023). Fast algorithm for centralized multi-agent maze exploration. arXiv preprint arXiv:2310.02121 [[source](https://arxiv.org/pdf/2310.02121.pdf)].
 
 For calculation of HEDAC, we iteratively calculate the following:
@@ -1137,9 +1116,36 @@ def move_hedac_coverage(agents, start_grid, coverage_finish = 1.0, alpha=10, max
 
     return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
 
-"""## **Cost Utility**: Adds utility for better frontier selection.
+"""## **Frontier Selection**: Selects Frontier based on various criteria.
 
-#### **Cost Utility - MNM**
+#### **Nearest Frontier**: Selects the closest unexplored frontier.
+<u>Citation</u>: Yamauchi, B. (1998, May). Frontier-based exploration using multiple robots. In Proceedings of the second international conference on Autonomous agents (pp. 47-53).
+
+<u>Comment</u>: We employ Dijkstra's algorithm to identify the nearest frontiers and navigate to them, as it efficiently calculates the shortest paths, thereby determining the nearest frontiers. This approach is recommended by:
+
+*Juliá, M., Gil, A., & Reinoso, Ó. (2012). A comparison of path planning strategies for autonomous exploration and mapping of unknown environments. Autonomous Robots, 33(4), 427–444. https://doi.org/10.1007/s10514-012-9298-8*
+"""
+
+def nearest_frontier(x, y, unexpl_coords, explored_stage) -> tuple:
+    """Returns the new goal according to nearest frontier."""
+    min_path = np.inf
+    min_coord = (x, y)
+    dist = dijkstra(explored_stage, (x, y)) + 1
+    dist[(x, y)] = np.inf
+    if np.all(dist == np.inf):   # stays in the same position if it cannot go ananywhere.
+      return min_coord
+
+    for u_c in unexpl_coords:
+      if dist[tuple(u_c)] < min_path:
+        min_path = dist[tuple(u_c)]
+        min_coord = tuple(u_c)
+
+    if min_path == np.inf:  # cannot go to unexplored coords -> stays there.
+      return (x, y)
+
+    return min_coord
+
+"""#### **Cost Utility - MNM**
 <u>Citation:</u> Marjovi, A., Nunes, J., Marques, L., & de, T. (2009). Multi-robot exploration and fire searching. Infoscience (Ecole Polytechnique Fédérale de Lausanne). https://doi.org/10.1109/iros.2009.5354598
 
 $$
@@ -1333,9 +1339,9 @@ Cost matrix is computed via wavefront propagation.
 def compute_bso_cost_matrix(agents, frontiers, explored_stage):
     cost_matrix = np.full((len(agents), len(frontiers)), np.inf)
     for j, frontier in enumerate(frontiers):
-        wf = wavefront(explored_stage, tuple(frontier)) # wavefront ascending from frontier.
-        for i, _ in enumerate(agents):
-            cost_matrix[i][j] = wf[tuple(frontier)]
+        wf = wavefront(explored_stage, tuple(frontier), agent_obs=False) # wavefront ascending from frontier.
+        for i, a in enumerate(agents):
+            cost_matrix[i][j] = wf[(a.x, a.y)]
     return cost_matrix
 
 def cost_utility_bso(agents, frontiers, explored_stage):
@@ -1360,10 +1366,37 @@ def cost_utility_bso(agents, frontiers, explored_stage):
                     min_cost = cost_matrix[i][j]
                     a.goal = tuple(frontiers[j])
 
+"""#### **Flood Fill**
+
+The Flood Fill algorithm is widely recognized for maze navigation and exploration, frequently employed in competitions like the annual micro mouse competition.
+
+However, research on multi-agent exploration/navigation remains **limited** according to the following papers, which also discuss the integration of flood fill with multi-agent navigation:
+
+- Tjiharjadi, S., Razali, S., & Sulaiman, H. A. (2022). A systematic literature review of multi-agent pathfinding for maze research. Journal of Advances in Information Technology Vol, 13(4).
+- Tjiharjadi, S., Razali, S., Sulaiman, H. A., & Fernando, G. (2022). Design of Multi-Agent Pathfinding Robot Using Improved Flood Fill Algorithm in Maze Exploration. International Journal of Mechanical Engineering and Robotics Research, 11(8), 631-638.
+
+According to the papers mentioned, in Flood Fill **each cell has a value representing its distance from the target**. It's important to note that these papers primarily focus on **reaching a target cell and returning** to find the shortest path to the target cell **(pathfinding)**, rather than on the complete exploration of the maze. **The following code attempts to address the challenge of fully exploring the maze, taking inspiration from cu_bso**.
+"""
+
+def compute_ff_matrix(agents, frontiers, explored_stage):
+    cost_matrix = np.full((len(agents), len(frontiers)), np.inf)
+    for j, frontier in enumerate(frontiers):
+        wf = flood_fill(explored_stage, tuple(frontier), agent_obs=False) # wavefront ascending from frontier.
+        for i, a in enumerate(agents):
+            cost_matrix[i][j] = wf[(a.x, a.y)]
+    return cost_matrix
+
+def ff_assign_goals(agents, frontiers, explored_stage):
+    cost_matrix = compute_ff_matrix(agents, frontiers, explored_stage)
+
+    for i, a in enumerate(agents):
+        min_indices = np.where(cost_matrix[i] == np.min(cost_matrix[i]))[0]
+        a.goal = tuple(frontiers[min_indices[0]])
+
 """#### **<u>Proposed Cost Utility:</u>**
 * Have a matrix of zeros (with the same shape as explored_stage)
 * Put there the scores from all previous (cost-util) algorithms **normalized** (range [0, 1]).
-* Select the cell with the highest normalized score.
+* In case of more than 1 nearest frontiers, select the cell with the highest normalized score.
 
 <u>New Utility Function:</u>
 
@@ -1632,6 +1665,12 @@ def update_goals(agents, total_explored, start=False, algo='nf', lambda_=0.8, vo
       update_goals_new_cost_util(agents, unexpl_coords, total_explored, start, algo=algo)
     return
 
+  if algo == 'flood_fill':
+    if voronoi_mode:
+      raise NotImplementedError(f"{algo} has not been implemented in voronoi mode.")
+    ff_assign_goals(agents, unexpl_coords, total_explored)
+    return
+
   if algo == 'cu_bso':
     if voronoi_mode:
       raise NotImplementedError(f"{algo} has not been implemented in voronoi mode.")
@@ -1698,6 +1737,8 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
             path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
           elif algo in ['cu_jgr', 'nf']:
             path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
+          elif algo == 'flood_fill':
+            path = flood_fill_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
           else: # cu_bso and all the new methods.
             path = wavefront_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
 
@@ -1731,127 +1772,6 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
   re = check_real_expl(start_grid, total_explored)  # gets the difference of explored & real grid
 
   return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
-
-"""## **Flood Fill**: Executes flood fill algorithm to explore the maze.
-
-#### Overview:
-
-The Flood Fill algorithm is widely recognized for maze navigation and exploration, frequently employed in competitions like the annual micro mouse competition.
-
-However, research on multi-agent exploration/navigation remains **limited** according to the following papers, which also discuss the integration of flood fill with multi-agent navigation:
-
-- Tjiharjadi, S., Razali, S., & Sulaiman, H. A. (2022). A systematic literature review of multi-agent pathfinding for maze research. Journal of Advances in Information Technology Vol, 13(4).
-- Tjiharjadi, S., Razali, S., Sulaiman, H. A., & Fernando, G. (2022). Design of Multi-Agent Pathfinding Robot Using Improved Flood Fill Algorithm in Maze Exploration. International Journal of Mechanical Engineering and Robotics Research, 11(8), 631-638.
-
-However, it's important to note that these papers primarily focus on **reaching a target cell and returning** to find the shortest path to the target cell **(pathfinding)**, rather than on the complete exploration of the maze. **The following code attempts to address the challenge of fully exploring the maze**.
-
-<u>Flood fill disadvantage:</u> may visit already explored cells. To address this, we've implemented the `ff_default` method for our **default** flood fill implementation. In case of distance equality (calculated by flood fill), this method selects the next position as the cell that has been least visited by all agents. This approach closely resembles a standard flood fill approach.
-
-#### **<u>Proposed Flood Fill</u>**:
-This new flood fill approach combines the methods from previous cost-utility methods to enhance flood fill exploration. The implemented cu methods **with flood fill** are:
-
-* `NEW_FF_HEDAC`: combines flood fill with the proposed algorithm for maze exploration of *<u>Crnković, B., Ivić, S., & Zovko, M. (2023). Fast algorithm for centralized multi-agent maze exploration. arXiv preprint arXiv:2310.02121.</u>*
-* `NEW_FF_CU_DIFFGOAL`: previously proposed cost utility method (without hedac) and also **substracts the (normalized) number of times the cell has been visited for less attractive force**, to avoid repetition of cells.
-* `NEW_FF_CU_HEDAC_DIFFGOAL`: previously proposed cost utility method (with hedac)and also **substracts the (normalized) number of times the cell has been visited for less attractive force**, to avoid repetition of cells.
-* `NEW_FF_JGR`: flood fill combined with cost utility jgr.
-
-**These methods are executed when agent has equality in distances (of flood fill) to select best cell to go.**
-
-<u>Comment:</u> We do the extra substraction of visited coords in `NEW_FF_CU_DIFFGOAL` & `NEW_FF_CU_HEDAC_DIFFGOAL` because without it the agents in the experiments were stuck in an infinite loop (going back and forth). By substracting the visited coords, we solved this problem.
-
-Function for finding the max utility
-"""
-
-def find_ff_maxutil(u, agent, min_indices_list) -> tuple:
-    max_u = -np.inf
-    next_pos = (agent.x, agent.y)
-    for i in min_indices_list:
-        if max_u < u[i]:
-            next_pos = i
-            max_u = u[i]
-    return next_pos
-
-"""Function for selecting among the cost utility functions. Here are the methods (`ff_default`, `new_ff_hedac`, `new_ff_cu_diffgoal`, `new_ff_cu_hedac_diffgoal`) for choosing a cell in case of distance equality (from flood fill)."""
-
-def select_flood_fill(algo, agent, all_agents, total_explored, stepped_cells, min_indices_list, alpha=10, max_iter=100, u_hedac=None):
-    if algo == 'ff_default':
-        cost = [stepped_cells[min_ind] if min_ind in stepped_cells else 0 for min_ind in min_indices_list]
-        min_cost_index = cost.index(min(cost))
-        return min_indices_list[min_cost_index]
-
-    if all_agents[0].u_hedac is None:
-        all_agents[0].u_hedac = norm_values(calc_attractive_field(total_explored, alpha=10))
-
-    if algo == 'new_ff_hedac':
-        return find_ff_maxutil(all_agents[0].u_hedac, agent, min_indices_list)
-
-    if algo == 'new_ff_cu_diffgoal':
-        u = calc_new_util(all_agents, total_explored, hedac=False)
-    elif algo == 'new_ff_cu_hedac_diffgoal':
-        u = calc_new_util(all_agents, total_explored, hedac=True)
-    elif algo == 'new_ff_jgr':
-        u = np.full_like(total_explored, 0)
-        for u_c in min_indices_list:
-            u[u_c] = calc_ujgr(u_c, agent.view_range, total_explored)
-
-    visited_matrix = np.zeros_like(total_explored)
-    for c in stepped_cells:
-        visited_matrix[c] = stepped_cells[c]
-    visited_matrix = norm_values(visited_matrix) # normalizes visited matrix scores to range [0, 1].
-
-    u = u - visited_matrix
-    return find_ff_maxutil(u, agent, min_indices_list)
-
-"""#### Function for running Flood Fill:"""
-
-def move_ff_coverage(start_grid, start_agents, algo='ff_default', coverage_finish = 1.0, debug=False, save_images=False):
-    if algo not in ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal', 'new_ff_jgr']:
-        warnings.warn(f"Requested flood fill algorithm '{algo}' has not been implemented. Implementing 'default' flood fill.")
-        algo = 'ff_default'
-
-    grid = copy.deepcopy(start_grid)
-    agents = copy.deepcopy(start_agents)
-
-    for agent in agents:
-        grid[agent.x, agent.y] = 2  # Mark initial agent positions
-    total_explored = update_total_explored(agents, True)
-    stepped_cells = {(a.x, a.y): 1 for a in agents}
-
-    round_time_list = []
-    rounds = 0
-    sum_dist = 0
-
-    while calculate_expl_percentage(total_explored) < coverage_finish:
-        rounds += 1
-        eps_start_time = time.time()
-        agents[0].u_hedac = None
-        for a in agents:
-            old_agent_pos = (a.x, a.y)
-            dist = flood_fill(total_explored, (a.x, a.y))
-            # selects the smallest distance:
-            min_indices = np.where(dist == np.min(dist))
-            min_indices_list = list(zip(min_indices[0], min_indices[1]))
-            # print(min_indices_list)
-            if len(min_indices_list) == 1:
-                a.x, a.y = min_indices_list[0]
-                stepped_cells[(a.x, a.y)] = stepped_cells.get((a.x, a.y), 0) + 1
-            else:
-                # in case of equality, selects the one that has been less stepped on.
-                # if candidate cells have been stepped the same, select first option.
-                a.x, a.y = select_flood_fill(algo, a, agents, total_explored, stepped_cells, min_indices_list)
-                stepped_cells[(a.x, a.y)] = stepped_cells.get((a.x, a.y), 0) + 1
-
-            if debug:
-                draw_maze(total_explored, goal=(a.x, a.y), save_gif=save_images)
-            a.agent_view(start_grid)
-            total_explored = update_total_explored(agents, True)
-            if old_agent_pos != (a.x, a.y):
-                sum_dist += 1
-        round_time_list.append(time.time() - eps_start_time)
-
-    re = check_real_expl(start_grid, total_explored)  # gets the difference of explored & real grid
-
-    return re[1], rounds, total_explored, np.sum(round_time_list), sum_dist, calc_exploration_efficiency(total_explored, sum_dist)
 
 """## **Submaps Exploration**: Splits the maze to submaps for exploring
 
@@ -2154,8 +2074,6 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
     if coverage_mode:
       if algo == 'hedac':
         res = move_hedac_coverage(start_grid=grid, agents=agents, alpha=alpha, coverage_finish=coverage_finish, max_iter=max_hedac_iter, debug=debug, save_images=save_images)
-      elif algo in ['ff_default', 'new_ff_hedac', 'new_ff_cu_diffgoal', 'new_ff_cu_hedac_diffgoal', 'new_ff_jgr']:
-        res = move_ff_coverage(start_grid=grid, start_agents=agents, algo=algo, coverage_finish=coverage_finish, debug=debug, save_images=save_images)
       elif not voronoi_mode:
         res = move_nf_coverage(start_grid=grid, start_agents=agents, coverage_finish = coverage_finish, debug=debug, algo=algo, lambda_=lambda_, save_images=save_images)
       else:
@@ -2350,7 +2268,7 @@ alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.8 # used in cost-utility jgr
 voronoi_mode = False
 # algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
-algos = ['new_cu_diffgoal_path', 'cu_jgr', 'nf', 'cu_bso']
+algos = ['cu_bso', 'flood_fill']
 for t_algo in algos:
   for agents_num_list_i in agents_num_list:
     run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

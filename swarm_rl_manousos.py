@@ -2277,9 +2277,8 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
 
 # Initialization Parameters ========
 agents_num_list = [[1, 2, 4, 6], [8, 10]]
-rows = 15
-cols = 15
-num_test = 1000
+dimensions = [(15, 15), (30, 30), (50, 50)]
+num_test = 100
 obs_prob = 0.85
 agent_view = 2
 coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
@@ -2287,7 +2286,8 @@ alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.2
 voronoi_mode = False
 # algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
-algos = ['new_cu_diffgoal_path']
-for t_algo in algos:
-  for agents_num_list_i in agents_num_list:
-    run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)
+algos = ['new_cu_diffgoal_path_0.8', 'new_cu_diffgoal_path_0.5', 'new_cu_diffgoal_path_0.3', 'new_cu_diffgoal_path_0.2', 'new_cu_diffgoal_path_0']
+for dim in dimensions:
+  for t_algo in algos:
+    for agents_num_list_i in agents_num_list:
+      run_all_exp(t_algo, agents_num_list_i, dim[0], dim[1], num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

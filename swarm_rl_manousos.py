@@ -1403,10 +1403,10 @@ def ff_assign_goals(agents, frontiers, explored_stage):
 We can create a matrix of 0s (with the same shape as explored_stage). Then we can take the **unexplored** coordinates (frontiers) and we calculate first the nearest-frontiers **<u>using wavefront</u>**. Then, for each cell/frontier $a$ **that is closer to the agent** we calculate:
 
 $$
-utility(a) = N(u_{mnm}(a)) + N(u_{jgr}(a))
+utility(a) = N(u_{mnm}(a)) + \lambda \cdot N(u_{jgr}(a))
 $$
 
-where $a$ the frontier we exam and:
+where $a$ the frontier we exam and $\lambda$ a parameter which we define. Also:
 
 $$
 N(x) = \frac{x - x_{\text{min}}}{x_{\text{max}} - x_{\text{min}}}
@@ -1434,7 +1434,7 @@ where $Unex(a, R_s)$ the number of unexplored cells in maximum sensor range $R_s
 To further enhance the cost-utility function, we can intergrate `HEDAC` like so:
 
 $$
-utility(a) = N(u_{mnm}(a)) + N(u_{jgr}(a)) + N(u_{hedac}(a))
+utility(a) = N(u_{mnm}(a)) + \lambda \cdot N(u_{jgr}(a)) + N(u_{hedac}(a))
 $$
 
 where $N(u_{hedac}(a))$ the normalized attractive field of cell $a$ according to `HEDAC`.
@@ -1494,7 +1494,7 @@ def norm_values(u):
   max_v = np.max(u)
   return (u - min_v) / (max_v - min_v)
 
-def calc_new_util_path(x, y, agents, total_explored, close_coords=None, Rs=2, hedac=False):
+def calc_new_util_path(x, y, agents, total_explored, close_coords=None, Rs=2, hedac=False, lambda_=0.2):
   u_mnm = np.full_like(total_explored, 0)
   u_jgr = np.full_like(total_explored, 0)
 
@@ -1518,12 +1518,12 @@ def calc_new_util_path(x, y, agents, total_explored, close_coords=None, Rs=2, he
   if hedac:
     if agents[0].u_hedac is None:
       agents[0].u_hedac = norm_values(calc_attractive_field(total_explored, alpha=10))
-    return u_mnm + u_jgr + agents[0].u_hedac
+    return u_mnm + (lambda_ * u_jgr) + agents[0].u_hedac
 
-  return u_mnm + u_jgr
+  return u_mnm + (lambda_ * u_jgr)
 
 
-def calc_new_util(agents, total_explored, close_coords=None, Rs=2, hedac=False):
+def calc_new_util(agents, total_explored, close_coords=None, Rs=2, hedac=False, lambda_=0.2):
   u_mnm = np.full_like(total_explored, 0)
   u_jgr = np.full_like(total_explored, 0)
   # print(close_coords)
@@ -1541,12 +1541,12 @@ def calc_new_util(agents, total_explored, close_coords=None, Rs=2, hedac=False):
   if hedac:
     if agents[0].u_hedac is None:
       agents[0].u_hedac = norm_values(calc_attractive_field(total_explored, alpha=10))
-    return u_mnm + u_jgr + agents[0].u_hedac
+    return u_mnm + (lambda_ * u_jgr) + agents[0].u_hedac
 
-  return u_mnm + u_jgr
+  return u_mnm + (lambda_ * u_jgr)
 
 
-def cost_utility_new(x, y, unexpl_coords, explored_stage, agents, view_range=2, algo=None) -> tuple:
+def cost_utility_new(x, y, unexpl_coords, explored_stage, agents, view_range=2, algo=None, lambda_=1.0) -> tuple:
     hedac = False
     if algo in ['new_cu_hedac_diffgoal', 'new_cu_hedac_diffgoal_path', 'new_cu_hedac_same']:
        hedac = True
@@ -1578,9 +1578,9 @@ def cost_utility_new(x, y, unexpl_coords, explored_stage, agents, view_range=2, 
 
     # print(len(min_min_path_dict))
     if algo in ['new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path']:
-      utility = calc_new_util_path(x, y, agents, explored_stage, close_coords, view_range, hedac)
+      utility = calc_new_util_path(x, y, agents, explored_stage, close_coords, view_range, hedac, lambda_)
     else:
-      utility = calc_new_util(agents, explored_stage, close_coords, view_range, hedac)
+      utility = calc_new_util(agents, explored_stage, close_coords, view_range, hedac, lambda_)
 
     max_util = -1
     for k in close_coords:
@@ -1591,7 +1591,7 @@ def cost_utility_new(x, y, unexpl_coords, explored_stage, agents, view_range=2, 
     # print(target_coord)
     return target_coord
 
-def update_goals_new_cost_util(agents, unexpl_coords, total_explored, start=False, algo='new_cu_diffgoal'):
+def update_goals_new_cost_util(agents, unexpl_coords, total_explored, start=False, algo='new_cu_diffgoal', lambda_=1.0):
   un_coords = copy.deepcopy(unexpl_coords.tolist())
   for a in agents:
     if total_explored[a.goal] == -1 and list(a.goal) in un_coords and len(unexpl_coords) >= len(agents):
@@ -1600,14 +1600,14 @@ def update_goals_new_cost_util(agents, unexpl_coords, total_explored, start=Fals
   for a in agents:
     if not start and total_explored[a.goal] == -1:
         continue
-    a.goal = cost_utility_new(a.x, a.y, un_coords, a.explored_stage, agents, a.view_range, algo=algo)
+    a.goal = cost_utility_new(a.x, a.y, un_coords, a.explored_stage, agents, a.view_range, algo=algo, lambda_=lambda_)
     if a.goal != (a.x, a.y) and len(unexpl_coords) >= len(agents):
       un_coords.remove(list(a.goal))
       # print(f"Goal Removed: {list(a.goal)}")
       # print(f"Goals left: {un_coords}")
       # print("================")
 
-def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo='new_cu_diffgoal'):
+def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo='new_cu_diffgoal', lambda_=1.0):
   un_coords = []
   goals = {}
   un_coords_all = copy.deepcopy(unexpl_coords.tolist())
@@ -1619,14 +1619,14 @@ def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo=
         # goals.update({a.goal: 1}) if a.goal not in goals else goals.pop(a.goal)
         # test_i = a.goal
         continue
-    a.goal = cost_utility_new(a.x, a.y, un_coords[a_i], a.explored_stage, agents, a.view_range, algo=algo)
+    a.goal = cost_utility_new(a.x, a.y, un_coords[a_i], a.explored_stage, agents, a.view_range, algo=algo, lambda_=lambda_)
     if a.goal not in goals:
       goals[a.goal] = 1
     elif a.goal != (a.x, a.y) and len(un_coords_all) >= len(agents):
       # while a.goal in goals and len(un_coords[a_i]) > 1:
       while a.goal in goals and len(un_coords[a_i]) > len(agents):
         un_coords[a_i].remove(list(a.goal))
-        a.goal = cost_utility_new(a.x, a.y, un_coords[a_i], a.explored_stage, agents, a.view_range, algo=algo)
+        a.goal = cost_utility_new(a.x, a.y, un_coords[a_i], a.explored_stage, agents, a.view_range, algo=algo, lambda_=lambda_)
       if a.goal not in goals:
         goals[a.goal] = 1
 
@@ -1644,7 +1644,7 @@ def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo=
 This function is used **throughout** the entire code (nearest frontier, cost utility and voronoi methods).
 """
 
-def update_goals(agents, total_explored, start=False, algo='nf', lambda_=0.8, voronoi_mode=False):
+def update_goals(agents, total_explored, start=False, algo='nf', lambda_=1.0, voronoi_mode=False):
   """ Function to update the goals of the agents (if they are explored). """
   unexpl_coords = np.argwhere(total_explored == -1)
   if len(unexpl_coords) <= 0:
@@ -1660,9 +1660,9 @@ def update_goals(agents, total_explored, start=False, algo='nf', lambda_=0.8, vo
 
   if algo in diffgoal_algos:
     if voronoi_mode:
-      update_goals_new_cost_util_voronoi(agents, unexpl_coords, start, algo=algo)
+      update_goals_new_cost_util_voronoi(agents, unexpl_coords, start, algo=algo, lambda_=lambda_)
     else:
-      update_goals_new_cost_util(agents, unexpl_coords, total_explored, start, algo=algo)
+      update_goals_new_cost_util(agents, unexpl_coords, total_explored, start, algo=algo, lambda_=lambda_)
     return
 
   if algo == 'flood_fill':
@@ -1709,7 +1709,7 @@ def update_goals(agents, total_explored, start=False, algo='nf', lambda_=0.8, vo
 Here is the function for testing nearest frontier & cost utility methods (with focus on coverage).
 """
 
-def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True, algo='nf', lambda_=0.8, save_images=False):
+def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True, algo='nf', lambda_=1.0, save_images=False):
 
   grid = copy.deepcopy(start_grid)
 
@@ -1922,7 +1922,7 @@ def see_goals(agents, expl_perc):
         print("================")
         break
 
-def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True, algo='nf', lambda_=0.8, save_images=False):
+def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True, algo='nf', lambda_=1.0, save_images=False):
 
   grid = copy.deepcopy(start_grid)
   agents = copy.deepcopy(start_agents)
@@ -2036,7 +2036,20 @@ def save_xlsx(file_path: str, new_row: dict):
 
 """Function to test astar with many experiments (print averages)."""
 
-def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, file_path = None, agent_view_range = 2, debug=False, coverage_mode=True, coverage_finish=1.0, algo='nf', alpha=10, max_hedac_iter=100, lambda_=0.8, voronoi_mode=False, save_images=False):
+def check_last_float(input_string):
+    if "_" in input_string:
+        parts = input_string.split("_")
+        last_part = parts[-1]
+        string_without_last_part = "_".join(parts[:-1])
+
+        try:
+            last_part_float = float(last_part)
+            return string_without_last_part, last_part_float
+        except ValueError:
+            return input_string, None
+    return input_string, None
+
+def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, file_path = None, agent_view_range = 2, debug=False, coverage_mode=True, coverage_finish=1.0, algo='nf', alpha=10, max_hedac_iter=100, lambda_=1.0, voronoi_mode=False, save_images=False):
   """
   Function to test astar with many experiments (returns averages).
   If you want to give the initial grid, initialize the variable start_grid with your grid
@@ -2049,6 +2062,11 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
   """
   if save_images:
     debug = True
+
+  algo, cu_l = check_last_float(algo)
+
+  lambda_ = cu_l if cu_l is not None else lambda_
+
   avg_cover = []
   total_rounds = []
   avg_exp_time = []
@@ -2061,6 +2079,7 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
 
   count_false = 0
 
+  print(f"Algo: {algo} / Lambda: {lambda_}")
   for i in range(num_test):
     if count_false > 4:
       break
@@ -2258,17 +2277,17 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
 
 # Initialization Parameters ========
 agents_num_list = [[1, 2, 4, 6], [8, 10]]
-rows = 15
-cols = 15
-num_test = 1000
+dimensions = [(15, 15), (30, 30), (50, 50)]
+num_test = 100
 obs_prob = 0.85
 agent_view = 2
 coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
 alpha, max_hedac_iter = 10, 100 # used in hedac
-lambda_ = 0.8 # used in cost-utility jgr
+lambda_ = 0.2
 voronoi_mode = False
 # algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
-algos = ['cu_bso', 'flood_fill']
-for t_algo in algos:
-  for agents_num_list_i in agents_num_list:
-    run_all_exp(t_algo, agents_num_list_i, rows, cols, num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)
+algos = ['new_cu_diffgoal_path_0.8', 'new_cu_diffgoal_path_0.5', 'new_cu_diffgoal_path_0.3', 'new_cu_diffgoal_path_0.2', 'new_cu_diffgoal_path_0']
+for dim in dimensions:
+  for t_algo in algos:
+    for agents_num_list_i in agents_num_list:
+      run_all_exp(t_algo, agents_num_list_i, dim[0], dim[1], num_test, obs_prob, agent_view, coverage_mode, alpha, max_hedac_iter, lambda_, voronoi_mode=voronoi_mode)

@@ -90,25 +90,39 @@ This mode was initially implemented during experimentation with various scenario
 <details closed>
 <summary><h2>Maze Coverage Examples</h2>Here are the results from the algorithms used for maze coverage (click here to view):</summary>
 
-### Nearest-Frontier
-
+### Nearest-Frontier:
 <p align="center">
-  <img src="utils/nf_30x30_10agents.gif" alt="Nearest-Frontier">
+  <img src="utils/nf_15x15_6agents.gif" alt="Nearest-Frontier">
 </p>
 
-### HEDAC
-
+### HEDAC:
 <p align="center">
-  <img src="utils/hedac_30x30_10agents.gif" alt="HEDAC">
+  <img src="utils/hedac_15x15_6agents.gif" alt="HEDAC">
+</p>
+
+### Flood Fill:
+<p align="center">
+  <img src="utils/flood_fill_15x15_6agents.gif" alt="Flood_Fill">
 </p>
 
 ### Cost Utility - MNM:
 <p align="center">
-  <img src="utils/cu_mnm_30x30_10agents.gif" alt="CU_MNM">
+  <img src="utils/cu_mnm_15x15_6agents.gif" alt="CU_MNM">
 </p>
 
 ### Cost Utility - JGR:
 <p align="center">
-  <img src="utils/cu_jgr_30x30_10agents_0.8.gif" alt="CU_JGR">
+  <img src="utils/cu_jgr_15x15_6agents.gif" alt="CU_JGR">
 </p>
+
+### Cost Utility - BSO:
+<p align="center">
+  <img src="utils/cu_bso_15x15_6agents.gif" alt="CU_BSO">
+</p>
+
+### New CU Diffgoal Path:
+<p align="center">
+  <img src="utils/new_cu_diffgoal_path_15x15_6agents.gif" alt="NEW_CU_DIFFGOAL_PATH">
+</p>
+
 </details>

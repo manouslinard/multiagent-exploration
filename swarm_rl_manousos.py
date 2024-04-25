@@ -46,8 +46,8 @@ class Agent:
       self.u_hedac = None # hedac related parameter.
       # voronoi related parameters:
       self.voronoi_coords = None
-      # self.broadcast_range = max(real_stage.shape[0], real_stage.shape[1]) *2 #// 4
       self.broadcast_range = max(real_stage.shape[0], real_stage.shape[1]) // 4
+      self.visited_cells = np.zeros_like(real_stage)
 
 
   def agent_view(self, real_stage):
@@ -515,7 +515,7 @@ This section contains code for:
 Function to plot the grid/maze:
 """
 
-def draw_maze(maze, path=None, goal=None, save_gif=False):
+def draw_maze(maze, path=None, goal=None, save_gif=False, numbered=False):
     fig, ax = plt.subplots(figsize=(10,10))
 
     fig.patch.set_edgecolor('white')
@@ -531,6 +531,12 @@ def draw_maze(maze, path=None, goal=None, save_gif=False):
 
     if goal is not None:
         ax.scatter(goal[1], goal[0], color='red', s=100, marker='s')
+
+    if numbered:
+        for i in range(maze.shape[0]):
+            for j in range(maze.shape[1]):
+                cell_number = maze[i, j]
+                ax.text(j, i, str(int(cell_number)), color='black', ha='center', va='center', fontsize=10)
 
     ax.set_xticks([])
     ax.set_yticks([])
@@ -761,14 +767,17 @@ def update_total_explored(agents, coverage_mode=False, voronoi_mode=False):
 
 """Function to return only the unexplored coords assigned by voronoi method **for each agent**. This method is used only in voronoi coverage."""
 
-def find_unexp_voronoi(agent):
+def find_unexp_voronoi(agent, excl_coords=None):
     # return unexpl_coords  # this works fine.
 
     unexp_vor_coords = []
     for v_coord in list(agent.voronoi_coords):
         # print(type(v_coord))
         if v_coord != (agent.x, agent.y) and agent.explored_stage[v_coord] == -1:
-            unexp_vor_coords.append(v_coord)
+            if excl_coords is None:
+                unexp_vor_coords.append(v_coord)
+            elif v_coord not in excl_coords:
+                unexp_vor_coords.append(v_coord)
 
     ## debug:
     # # print(unexp_vor_coords)
@@ -1350,12 +1359,27 @@ def cost_utility_bso(agents, frontiers, explored_stage):
     p_matrix = np.zeros((len(agents), len(frontiers)))
 
     for i, a in enumerate(agents):
-        for j, _ in enumerate(frontiers):
+        d = {}
+        for j, front in enumerate(frontiers):
+            d[tuple(front)] = j
             for k, _ in enumerate(agents):
                 if k != i:
                     p_matrix[i][j] += 1 if cost_matrix[k][j] < cost_matrix[i][j] else 0
 
-        min_indices = np.where(p_matrix[i] == np.min(p_matrix[i]))[0]
+        if a.voronoi_coords is not None:
+            canditate_coords = {}
+            min_score = np.inf
+            for v in a.voronoi_coords:
+                if tuple(v) in d and min_score >= p_matrix[i][d[tuple(v)]]:
+                    min_score = p_matrix[i][d[tuple(v)]]
+                    canditate_coords[d[tuple(v)]] = min_score
+            if min_score == np.inf:
+                a.goal = (a.x, a.y)
+                continue
+            final_cand_coords = [k for k in canditate_coords if canditate_coords[k] == min_score]
+            min_indices = np.array(final_cand_coords)
+        else:
+            min_indices = np.where(p_matrix[i] == np.min(p_matrix[i]))[0]
 
         if len(min_indices) == 1:
             a.goal = tuple(frontiers[min_indices[0]])
@@ -1390,7 +1414,21 @@ def ff_assign_goals(agents, frontiers, explored_stage):
     cost_matrix = compute_ff_matrix(agents, frontiers, explored_stage)
 
     for i, a in enumerate(agents):
-        min_indices = np.where(cost_matrix[i] == np.min(cost_matrix[i]))[0]
+        if a.voronoi_coords is not None:
+            d = {tuple(front) : j for j, front in enumerate(frontiers)}
+            canditate_coords = {}
+            min_score = np.inf
+            for v in a.voronoi_coords:
+                if tuple(v) in d and min_score >= cost_matrix[i][d[tuple(v)]]:
+                    min_score = cost_matrix[i][d[tuple(v)]]
+                    canditate_coords[d[tuple(v)]] = min_score
+            if min_score == np.inf:
+                a.goal = (a.x, a.y)
+                continue
+            final_cand_coords = [k for k in canditate_coords if canditate_coords[k] == min_score]
+            min_indices = np.array(final_cand_coords)
+        else:
+            min_indices = np.where(cost_matrix[i] == np.min(cost_matrix[i]))[0]
         a.goal = tuple(frontiers[min_indices[0]])
 
 """#### **<u>Proposed Cost Utility:</u>**
@@ -1611,8 +1649,12 @@ def update_goals_new_cost_util_voronoi(agents, unexpl_coords, start=False, algo=
   un_coords = []
   goals = {}
   un_coords_all = copy.deepcopy(unexpl_coords.tolist())
+  excl_coords = []
   for a in agents:
-    un_coords.append(find_unexp_voronoi(a).tolist())
+    excl_coords.append(a.goal)
+
+  for a in agents:
+    un_coords.append(find_unexp_voronoi(a, excl_coords).tolist())
 
   for a_i, a in enumerate(agents):
     if not start and a.explored_stage[a.goal] == -1:
@@ -1666,14 +1708,14 @@ def update_goals(agents, total_explored, start=False, algo='nf', lambda_=1.0, vo
     return
 
   if algo == 'flood_fill':
-    if voronoi_mode:
-      raise NotImplementedError(f"{algo} has not been implemented in voronoi mode.")
+    # if voronoi_mode:
+    #   raise NotImplementedError(f"{algo} has not been implemented in voronoi mode.")
     ff_assign_goals(agents, unexpl_coords, total_explored)
     return
 
   if algo == 'cu_bso':
-    if voronoi_mode:
-      raise NotImplementedError(f"{algo} has not been implemented in voronoi mode.")
+    # if voronoi_mode:
+    #   raise NotImplementedError(f"{algo} has not been implemented in voronoi mode.")
     cost_utility_bso(agents, unexpl_coords, total_explored)
     return
 
@@ -1787,10 +1829,12 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
 * Divide the maze based on Voronoi partitioning (the **"central"** points of each region are the **agents**).
 * Agents must explore **all** the cells of the region assigned to them.
 * While they are exploring the stage, if there are other agents in the appropriate broadcast range, they **"share"** the information they have with each other. The broadcast range can be the 25% of the max dimension of the stage.
+* Also, once the broadcast reaches another agent **at the end of each round**, both agents will **merge** their voronoi regions, and explore the merged voronoi region.
 * Once they explore their region, the agent moves to the **nearest** region that has not been fully explored (perhaps an evaluation function needs to be constructed for selecting the next region for exploration - for example, it will also take into account how much % of the region has been explored and how close it is to the agent). To evaluate which is the best region, **the central exploration matrix is examined**.
 * The agent should be able to move to cells of other regions, also "saving" them in its explored map (which in turn can be shared if there are other agents in the broadcast range).
-* Ultimately, the goals of the agent will always be within the region it has undertaken. We can use coverage techniques that have been studied before (apart from HEDAC without any of the new combinations, as it only selects the neighbors) by setting the cost to a very high (or very low, depending) value in the cells outside the agent's region so that the agent does not select the cells outside its region.
 * Agents in **each round** will push centrally their explored maps **without pulling them**, so we know when they have explored the entire stage (and stop the experiment).
+
+Ultimately, the goals of the agent will always be within the region it has undertaken.
 
 <u>Relatable Papers:</u> *Moulinec, H. (2022). A simple and fast algorithm for computing discrete Voronoi, Johnson-Mehl or Laguerre diagrams of points. Advances in Engineering Software, 170, 103150.*
 
@@ -1849,43 +1893,7 @@ def find_agent_vcoords(matrix, agent_indx):
                 coords.append((i, j))
     return coords
 
-"""Function to update the voronoi regions of agents (if agent has explored all of them)."""
-
-def update_voronoi_regions(agents, total_explored, v_map):
-    v_map_tmp = copy.deepcopy(v_map)
-
-    for a_i, agent in enumerate(agents):
-        finish_a = True
-        for v in list(agent.voronoi_coords):
-            # if total_explored[v] == -1:
-            if agent.explored_stage[v] == -1:
-                # print(f'Agent {a_i} has not finished its partition. Remaining cells:')
-                # print(find_unexp_voronoi(agent))
-                finish_a =  False  # agent has not finished exploring its region.
-                break
-
-        if not finish_a:    # agent has not finished exploring its region -> does not update region.
-            continue
-
-        # print(f'Agent {a_i} has finished its partition ({v_map[(agent.x, agent.y)]})!')
-
-        # v_map_tmp[agent.explored_stage != -1] = -1
-        v_map_tmp[total_explored != -1] = -1
-        min_distance = np.inf
-        min_v_part = -1
-
-        for i in range(v_map_tmp.shape[0]):
-            for j in range(v_map_tmp.shape[1]):
-                if v_map_tmp[(i, j)] != -1:
-                    # path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), (i, j))
-                    path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), (i, j))
-                    if path is not None and len(path) < min_distance:
-                        min_distance = len(path)
-                        min_v_part = v_map_tmp[(i, j)]
-
-        # print(f'  Agent {a_i} new partition is {min_v_part}\n    Old Agent {a_i} partition coords: {agent.voronoi_coords}')
-        agent.voronoi_coords = find_agent_vcoords(v_map, min_v_part)
-        # print(f'    New Agent {a_i} partition coords: {agent.voronoi_coords}')
+"""Function to find the agents that are in broadcast range. The list returns contains lists of agents that are all in broadcast range."""
 
 def find_near_agents(agents) -> list:
     near_agents = []
@@ -1914,6 +1922,36 @@ def find_near_agents(agents) -> list:
 
     return near_agents
 
+"""Function to update the voronoi regions of agents (if agent has explored all of them)."""
+
+def update_voronoi_regions(agents, total_explored, v_map):
+    v_map_tmp = copy.deepcopy(v_map)
+
+    for _, agent in enumerate(agents):
+        finish_a = True
+        for v in list(agent.voronoi_coords):
+            if agent.explored_stage[v] == -1:
+                finish_a =  False  # agent has not finished exploring its region.
+                break
+
+        if not finish_a:    # agent has not finished exploring its region -> does not update region.
+            continue
+
+        v_map_tmp[total_explored != -1] = -1
+        min_distance = np.inf
+        min_v_part = -1
+
+        for i in range(v_map_tmp.shape[0]):
+            for j in range(v_map_tmp.shape[1]):
+                if v_map_tmp[(i, j)] != -1:
+                    path = dijkstra_path(agent.explored_stage, (agent.x, agent.y), (i, j))
+                    if path is not None and len(path) < min_distance:
+                        min_distance = len(path)
+                        min_v_part = v_map_tmp[(i, j)]
+        agent.voronoi_coords = find_agent_vcoords(v_map, min_v_part)
+
+"""Function for debugging (checks if the goals of each agent is within its voronoi region):"""
+
 def see_goals(agents, expl_perc):
     for a in agents:
       if expl_perc < 1.0 and a.goal != (a.x, a.y) and a.goal not in a.voronoi_coords:
@@ -1922,13 +1960,55 @@ def see_goals(agents, expl_perc):
         print("================")
         break
 
+"""Appends the voronoi coords when agents are in broadcast range:"""
+
+def append_voronoi(agents, start_v_map):
+    near_agents = find_near_agents(agents)
+
+    agent_new_coords = {}
+
+    for agent_list in near_agents:
+        for agent in agent_list:
+            if agent not in agent_new_coords:
+                agent_new_coords[agent] = set()
+            agent_new_coords[agent] |= set(agent.voronoi_coords)    # union operator.
+
+    for agent in agent_new_coords:
+        agent.voronoi_coords = list(agent_new_coords[agent])
+
+
+    # update of vmap:
+    v_map_new = np.full_like(start_v_map, -10)
+    for i, agent in enumerate(agents):
+        for c in agent.voronoi_coords:
+            if v_map_new[c] == -10:
+                v_map_new[c] = i
+
+    # l = start_v_map[v_map_new == -10]  # gets the agent indexes where there is -1 for v_map_new
+    # for ind in l:
+    #     if ind < 0:
+    #         continue
+    #     for c in agents[int(ind)].voronoi_coords:
+    #         if v_map_new[c] == -10:
+    #             v_map_new[c] = ind
+
+    v_map_new[v_map_new == -10] = start_v_map[v_map_new == -10]
+
+    return v_map_new
+
+"""Function for the main voronoi exploration process."""
+
 def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True, algo='nf', lambda_=1.0, save_images=False):
 
   grid = copy.deepcopy(start_grid)
   agents = copy.deepcopy(start_agents)
+  # print(grid)
+  # for a in agents:
+  #   print(a.x,a.y)
   near_agents = find_near_agents(agents)
 
-  v_map = voronoi_map(agents)
+  start_v_map = voronoi_map(agents)
+  v_map = copy.deepcopy(start_v_map)
   if debug:
     draw_maze_voronoi(v_map, save_gif=save_images)
 
@@ -1942,6 +2022,8 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
       agent.explored_stage[-1, :] = 1
       agent.explored_stage[:, 0] = 1
       agent.explored_stage[:, -1] = 1
+
+  v_map = append_voronoi(agents, start_v_map)
 
   broadcast_explored(agents)
   total_explored = update_total_explored(agents, True, True)
@@ -1960,6 +2042,7 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
       path_none = 0
       agents[0].u_hedac = None
       for i, agent in enumerate(agents):
+          agent.explored_stage[agent.visited_cells > 4] = 1  # new mod -> agents do not revisit old cells.
           if algo == 'cu_mnm':
             path = AStar(agent.explored_stage, coverage_mode=True).search((agent.x, agent.y), agent.goal)
           elif algo in ['cu_jgr', 'nf']:
@@ -1967,17 +2050,21 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
           else: # all the new methods.
             path = wavefront_path(agent.explored_stage, (agent.x, agent.y), agent.goal)
 
+          agent.explored_stage[agent.visited_cells > 4] = 0
           if debug:
             draw_maze_voronoi(v_map, agent.explored_stage, path=path, save_gif=save_images)
 
           if path and len(path) > 1:
               if (agent.x, agent.y) != path[1]:
                 sum_dist += 1
+                agent.visited_cells[(agent.x, agent.y)] += 1 if len(agents) > 1 else 0
               grid[agent.x, agent.y] = 0  # Mark the old position as unoccupied
               agent.x, agent.y = path[1]  # Update agent position
               grid[agent.x, agent.y] = 2  # Mark the new position as occupied by agent
           else:
-            path_none += 1
+            if np.all(agent.visited_cells) == 0:
+              path_none += 1
+            agent.visited_cells = np.zeros_like(total_explored)
           agent.agent_view(start_grid)
           broadcast_explored(agents)
           total_explored = update_total_explored(agents, True, True)
@@ -1986,17 +2073,21 @@ def move_voronoi_coverage(start_grid, start_agents, coverage_finish = 1.0, debug
         draw_maze(total_explored, save_gif=save_images)
         print("=============")
 
+      v_map = append_voronoi(agents, start_v_map)
       # update goals (if agents have explored the goals of another agent):
       update_voronoi_regions(agents, total_explored, v_map)
       near_agents = find_near_agents(agents)
+
       for agents_list in near_agents:
         # update goals (if agents have explored the goals of another agent):
-        update_goals(agents_list, total_explored, True, algo=algo, lambda_=lambda_, voronoi_mode=True)
+        update_goals(agents_list, total_explored, False, algo=algo, lambda_=lambda_, voronoi_mode=True)
         see_goals(agents_list, calculate_expl_percentage(total_explored))
 
       round_time_list.append(time.time() - eps_start_time)
       if path_none >= len(agents): # stops if no agents have moved.
-          # print(path_none, len(agents))
+          # print(start_grid)
+          # for a in start_agents:
+          #   print(a.x, a.y)
           print("STOP PATH NONE")
           break
 
@@ -2277,16 +2368,16 @@ def run_all_exp(algo, agents_num_list, rows, cols, num_test, obs_prob=0.85, agen
 
 # Initialization Parameters ========
 agents_num_list = [[1, 2, 4, 6], [8, 10]]
-dimensions = [(15, 15), (30, 30), (50, 50)]
-num_test = 100
+dimensions = [(15, 15)]
+num_test = 1000
 obs_prob = 0.85
 agent_view = 2
 coverage_mode = True    # 'coverage_mode = True' is researched in the thesis.
 alpha, max_hedac_iter = 10, 100 # used in hedac
 lambda_ = 0.2
-voronoi_mode = False
+voronoi_mode = True
 # algos = ['new_cu_hedac_diffgoal', 'new_cu_diffgoal', 'new_ff_hedac', 'hedac', 'new_cu_hedac_same', 'new_cu_same', 'nf', 'cu_bso', 'new_cu_diffgoal_path', 'new_cu_hedac_diffgoal_path', 'cu_jgr', 'ff_default', 'new_ff_jgr']
-algos = ['new_cu_diffgoal_path_0.8', 'new_cu_diffgoal_path_0.5', 'new_cu_diffgoal_path_0.3', 'new_cu_diffgoal_path_0.2', 'new_cu_diffgoal_path_0']
+algos = ['new_cu_diffgoal_path_0.2', 'nf', 'cu_jgr', 'cu_bso', 'cu_mnm', 'flood_fill']
 for dim in dimensions:
   for t_algo in algos:
     for agents_num_list_i in agents_num_list:

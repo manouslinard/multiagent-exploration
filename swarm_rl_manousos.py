@@ -1875,10 +1875,9 @@ def broadcast_explored(agents):
     for a in agents:
         a.explored_stage[a.explored_stage == 2] = 0 # removes all known agent positions.
         a.explored_stage[(a.x, a.y)] = 2
-
     cells_transferred = 0
+    maze_shape = agents[0].explored_stage.shape[0] * agents[0].explored_stage.shape[1]
     for a_i in agents:
-        old_exp = copy.deepcopy(a_i.explored_stage)
         for a_j in agents:
             distance = abs(a_i.x - a_j.x) + abs(a_i.y - a_j.y)
             if distance > 0 and distance <= a_i.broadcast_range:   # different agents & within broadcast
@@ -1886,11 +1885,7 @@ def broadcast_explored(agents):
                 # shares agent positions (if in broadcast range):
                 a_i.explored_stage[a_i.x, a_i.y] = 2
                 a_i.explored_stage[a_j.x, a_j.y] = 2
-                # shares explored stage.
-                # new_stage = copy.deepcopy(a_i.explored_stage)
-                # cells_transferred += np.sum(new_stage != a_j.explored_stage)
-                # a_j.explored_stage = new_stage
-        cells_transferred += np.sum(old_exp != a_i.explored_stage)   # sums the different cells.
+                cells_transferred += 2 * maze_shape
     return cells_transferred
 
 """Function for returning coords that have been assigned to an agent by voronoi."""

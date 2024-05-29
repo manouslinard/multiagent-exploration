@@ -14,6 +14,7 @@ from scipy.spatial.distance import cdist
 from PIL import Image
 import re
 import collections
+from scipy.stats import norm
 
 from sklearn.preprocessing import MinMaxScaler
 import warnings
@@ -551,6 +552,8 @@ def draw_maze(maze, path=None, goal=None, save_gif=False, numbered=False):
     # =============================================
 
     plt.show()
+
+"""Function for plotting the grid/maze in Voronoi mode (distributed maze):"""
 
 from matplotlib.colors import ListedColormap, Normalize
 
@@ -1814,7 +1817,7 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
 * Use cost-utility for exploring each partition
 * Once an agent has finished, goes to nearest unfinished partition
 * Limited communication range with other agents
-* Updates central map for knowing when the stage is explored (the central map is **not** shared between agents)
+* Updates central map for knowing when the stage is explored (the central map is **not** pulled)
 
 #### Detailed Overview
 
@@ -1822,13 +1825,11 @@ def move_nf_coverage(start_grid, start_agents, coverage_finish = 1.0, debug=True
 * Agents must explore **all** the cells of the region assigned to them.
 * While they are exploring the stage, if there are other agents in the appropriate broadcast range, they **"share"** the information they have with each other. The broadcast range can be the 25% of the max dimension of the stage.
 * Also, once the broadcast reaches another agent **at the end of each round**, both agents will **merge** their voronoi regions, and explore the merged voronoi region.
-* Once they explore their region, the agent moves to the **nearest** region that has not been fully explored (perhaps an evaluation function needs to be constructed for selecting the next region for exploration - for example, it will also take into account how much % of the region has been explored and how close it is to the agent). To evaluate which is the best region, **the central exploration matrix is examined**.
+* Once they explore their region, the agent moves to the **nearest** region that has not been fully explored. To evaluate which is the nearest region, **the central exploration matrix is examined**.
 * The agent should be able to move to cells of other regions, also "saving" them in its explored map (which in turn can be shared if there are other agents in the broadcast range).
-* Agents in **each round** will push centrally their explored maps **without pulling them**, so we know when they have explored the entire stage (and stop the experiment). The central map is also used to assign a new voronoi region once the agent has finished exploring its (previous) region.
+* Agents in **each round** will push centrally their explored maps **without pulling them**, so we know when they have explored the entire stage (and stop the experiment).
 
 Ultimately, the goals of the agent will always be within the region it has undertaken.
-
-<u>Relatable Papers:</u> *Moulinec, H. (2022). A simple and fast algorithm for computing discrete Voronoi, Johnson-Mehl or Laguerre diagrams of points. Advances in Engineering Software, 170, 103150.*
 
 #### Implementation
 
@@ -2244,7 +2245,7 @@ def save_xlsx(file_path: str, new_row: dict):
   df = df._append(new_row, ignore_index=True)
   df.to_excel(file_path, float_format='%.5f', index=False)
 
-"""Function to test astar with many experiments (print averages)."""
+"""Function to check if algo name contains float at the end, which corresponds to $\lambda$ value. If so, returns float (to be set as $\lambda$ value)."""
 
 def check_last_float(input_string):
     if "_" in input_string:
@@ -2258,6 +2259,8 @@ def check_last_float(input_string):
         except ValueError:
             return input_string, None
     return input_string, None
+
+"""Function to test astar with many experiments (print averages)."""
 
 def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, file_path = None, agent_view_range = 2, debug=False, coverage_mode=True, coverage_finish=1.0, algo='nf', alpha=10, max_hedac_iter=100, lambda_=1.0, voronoi_mode=False, save_images=False):
   """
@@ -2319,6 +2322,7 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
           row['Comm_Cost'] = res[6]
         row["Obs_Prob"] = params["obs_prob"]
         row["Test"] = i
+        # row['Algo'] = algo  # used only for debugging (to check if correct method is executed).
         save_xlsx(file_path, row)
       avg_expl_cost.append(res[4])
       avg_expl_eff.append(res[5])
@@ -2351,6 +2355,9 @@ def test_astar(num_agents, num_test, start_grid = None, gen_stage_func = None, f
   print(f"Average Coverage Percentage: {avg_cover} / Average Total Rounds: {avg_rounds} / Std Total Rounds: {std_rounds} / Average Round Time: {avg_round_time} / Average Agent Step Time: {avg_agent_step_time} / Average Experiment Time: {avg_exp_time}")
   return avg_cover, avg_rounds, avg_round_time, avg_agent_step_time, avg_exp_time, std_rounds
 
+"""## Complex Experimentation (used in thesis)
+This section contains the main experiment process used for getting results/comparing algos.
+"""
 
 def run_exp_xlsx(file_path, file_path_all, agents_num_list, rows, cols, num_test, obs_prob=0.85, agent_view = 2, coverage_mode=True, algo='nf', alpha=10, max_hedac_iter=100, lambda_=0.8, voronoi_mode=False):
   """Function to test and save the results of the algos."""

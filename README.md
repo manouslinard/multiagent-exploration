@@ -6,6 +6,8 @@ This repository contains algorithms and experiment results for maze exploration 
 1) "Multi-robot maze exploration using an efficient cost-utility method"
 2) "Distributed maze exploration using multiple agents and optimal goal assignment"
 
+For the 2nd paper, we have also prepared a short [video presentation](https://youtu.be/6U8a_EJ5RMM).
+
 The algorithms are designed to efficiently navigate and explore maze environments using a swarm of agents.
 
 ## File Naming Convention

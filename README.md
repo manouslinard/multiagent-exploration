@@ -3,12 +3,19 @@
 ## Overview
 This repository contains algorithms and experiment results for maze exploration with multiple agents, developed for my BSc thesis and 2 research papers, which are the following:
 
-1) "Multi-robot maze exploration using an efficient cost-utility method"
-2) "Distributed maze exploration using multiple agents and optimal goal assignment"
+1) ["Multi-robot maze exploration using an efficient cost-utility method"](https://arxiv.org/abs/2407.14218v1)
+2) ["Distributed maze exploration using multiple agents and optimal goal assignment"](https://ieeexplore.ieee.org/document/10605811)
 
 For the 2nd paper, we have also prepared a short [video presentation](https://youtu.be/6U8a_EJ5RMM).
 
-The algorithms are designed to efficiently navigate and explore maze environments using a swarm of agents.
+The algorithms are designed to efficiently navigate and explore maze environments using a swarm of agents. 
+
+## Installation
+To set up the project environment, first clone this repository and run:
+
+```
+pip install -r requirements.txt
+```
 
 ## File Naming Convention
 The resulting Excel files of the experiments (saved in both `results` and `results_submaps` folder) follow a specific naming convention to convey essential metadata. Both experiment folders contain subfolders with names that correspond to the algorithm that made these results.
